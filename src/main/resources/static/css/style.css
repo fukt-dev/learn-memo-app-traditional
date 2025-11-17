@@ -1,0 +1,758 @@
+/*
+ * ============================================
+ * メモ帳アプリ スタイルシート
+ * ============================================
+ *
+ * このファイルはアプリケーション全体のスタイルを定義します
+ *
+ * 【CSSの基本】
+ * セレクタ {
+ *     プロパティ: 値;
+ * }
+ *
+ * 【セレクタの種類】
+ * - 要素セレクタ: body, h1, p など
+ * - クラスセレクタ: .container, .btn など
+ * - IDセレクタ: #header, #main など
+ * - 子孫セレクタ: .container .btn など
+ * - 擬似クラス: :hover, :focus など
+ */
+
+/*
+ * ============================================
+ * リセットCSS・基本設定
+ * ============================================
+ */
+
+/*
+ * ボックスサイジングの設定
+ * box-sizing: border-box を使うと、
+ * width/height に padding と border が含まれる
+ *
+ * 例:
+ * width: 200px;
+ * padding: 10px;
+ * border: 2px;
+ *
+ * box-sizing: content-box（デフォルト）:
+ * → 実際の幅 = 200px + 10px*2 + 2px*2 = 224px
+ *
+ * box-sizing: border-box:
+ * → 実際の幅 = 200px（paddingとborderを含む）
+ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+/*
+ * body全体の設定
+ */
+body {
+    /* フォント設定 */
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue',
+                 'Hiragino Kaku Gothic ProN', '游ゴシック', YuGothic,
+                 'メイリオ', Meiryo, sans-serif;
+    /* 日本語に適したフォントを優先的に使用 */
+
+    font-size: 16px;  /* 基本フォントサイズ */
+    line-height: 1.6;  /* 行間 */
+    color: #333;  /* テキスト色（濃いグレー） */
+    background-color: #f5f5f5;  /* 背景色（薄いグレー） */
+
+    /* マージン・パディングのリセット */
+    margin: 0;
+    padding: 0;
+}
+
+/*
+ * リンクのデフォルトスタイル
+ */
+a {
+    color: #007bff;  /* リンク色（青） */
+    text-decoration: none;  /* 下線なし */
+}
+
+a:hover {
+    /*
+     * :hover 擬似クラス
+     * マウスカーソルが要素の上にある時のスタイル
+     */
+    text-decoration: underline;  /* ホバー時は下線を表示 */
+}
+
+/*
+ * ============================================
+ * レイアウト
+ * ============================================
+ */
+
+/*
+ * コンテナ
+ * 中央揃えで最大幅を制限
+ */
+.container {
+    max-width: 1200px;  /* 最大幅 */
+    margin: 0 auto;  /* 左右中央揃え */
+    padding: 0 20px;  /* 左右の余白 */
+}
+
+/*
+ * メインコンテンツエリア
+ */
+main.container {
+    min-height: calc(100vh - 200px);  /* 画面の高さ - ヘッダー・フッター */
+    /*
+     * calc() 関数
+     * 計算式を使って値を指定できる
+     * 100vh = ビューポートの高さ100%
+     */
+    padding-top: 20px;
+    padding-bottom: 40px;
+}
+
+/*
+ * ============================================
+ * ヘッダー・ナビゲーション
+ * ============================================
+ */
+
+/*
+ * ナビゲーションバー
+ */
+.navbar {
+    background-color: #007bff;  /* 背景色（青） */
+    color: white;  /* テキスト色 */
+    padding: 15px 0;  /* 上下の余白 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);  /* 影 */
+    /*
+     * box-shadow: x方向 y方向 ぼかし 色;
+     * rgba(赤, 緑, 青, 透明度)
+     */
+}
+
+.navbar .container {
+    display: flex;  /* フレックスボックスを使用 */
+    justify-content: space-between;  /* 左右に配置 */
+    align-items: center;  /* 垂直方向中央揃え */
+}
+
+/*
+ * ブランド名（アプリ名）
+ */
+.navbar-brand {
+    font-size: 1.5rem;  /* フォントサイズ（1rem = 16px） */
+    font-weight: bold;  /* 太字 */
+    color: white;  /* テキスト色 */
+}
+
+.navbar-brand:hover {
+    color: white;  /* ホバー時も白のまま */
+    text-decoration: none;  /* 下線なし */
+}
+
+/*
+ * ナビゲーションリンクのリスト
+ */
+.navbar-nav {
+    display: flex;  /* 横並び */
+    list-style: none;  /* リストマーカー（・）を非表示 */
+    margin: 0;
+    padding: 0;
+}
+
+.nav-item {
+    margin-left: 20px;  /* 左側の余白（項目間のスペース） */
+}
+
+.nav-link {
+    color: white;  /* テキスト色 */
+    padding: 5px 10px;  /* 内側の余白 */
+    border-radius: 4px;  /* 角を丸く */
+    /*
+     * border-radius
+     * 角の丸みを指定
+     * 大きいほど丸くなる
+     */
+}
+
+.nav-link:hover,
+.nav-link.active {
+    /*
+     * 複数のセレクタにカンマで区切って同じスタイルを適用
+     * :hover または .active クラス
+     */
+    background-color: rgba(255, 255, 255, 0.2);  /* 半透明の白 */
+    text-decoration: none;
+}
+
+/*
+ * ============================================
+ * フッター
+ * ============================================
+ */
+
+footer {
+    background-color: #333;  /* 背景色（濃いグレー） */
+    color: white;  /* テキスト色 */
+    text-align: center;  /* 中央揃え */
+    padding: 20px 0;  /* 上下の余白 */
+    margin-top: 40px;  /* 上側の余白 */
+}
+
+footer p {
+    margin: 0;
+}
+
+/*
+ * ============================================
+ * ボタン
+ * ============================================
+ */
+
+/*
+ * ボタンの基本スタイル
+ */
+.btn {
+    display: inline-block;  /* インラインブロック要素 */
+    padding: 10px 20px;  /* 内側の余白 */
+    font-size: 1rem;
+    border-radius: 4px;  /* 角を丸く */
+    border: none;  /* 枠線なし */
+    cursor: pointer;  /* マウスカーソルをポインター形状に */
+    text-align: center;
+    transition: all 0.3s;  /* 全プロパティを0.3秒でアニメーション */
+    /*
+     * transition
+     * プロパティの変化をアニメーションさせる
+     * transition: プロパティ名 duration timing-function;
+     */
+}
+
+.btn:hover {
+    transform: translateY(-2px);  /* Y方向に-2px移動（上に浮く） */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);  /* 影を追加 */
+}
+
+/*
+ * プライマリボタン（主要なアクション）
+ */
+.btn-primary {
+    background-color: #007bff;  /* 背景色（青） */
+    color: white;  /* テキスト色 */
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;  /* ホバー時の背景色（濃い青） */
+}
+
+/*
+ * セカンダリボタン（補助的なアクション）
+ */
+.btn-secondary {
+    background-color: #6c757d;  /* 背景色（グレー） */
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #545b62;
+}
+
+/*
+ * 成功ボタン（作成など）
+ */
+.btn-success {
+    background-color: #28a745;  /* 背景色（緑） */
+    color: white;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+/*
+ * 危険ボタン（削除など）
+ */
+.btn-danger {
+    background-color: #dc3545;  /* 背景色（赤） */
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+/*
+ * 情報ボタン（詳細など）
+ */
+.btn-info {
+    background-color: #17a2b8;  /* 背景色（水色） */
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+}
+
+/*
+ * 小さいボタン
+ */
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.875rem;  /* 14px */
+}
+
+/*
+ * ============================================
+ * フォーム
+ * ============================================
+ */
+
+/*
+ * フォームグループ（ラベル+入力欄のセット）
+ */
+.form-group {
+    margin-bottom: 20px;  /* 下側の余白 */
+}
+
+/*
+ * ラベル
+ */
+.form-group label {
+    display: block;  /* ブロック要素（横幅いっぱい） */
+    margin-bottom: 5px;  /* 下側の余白 */
+    font-weight: bold;  /* 太字 */
+    color: #555;  /* テキスト色 */
+}
+
+/*
+ * フォームコントロール（入力欄、テキストエリア）
+ */
+.form-control {
+    width: 100%;  /* 幅いっぱい */
+    padding: 10px;  /* 内側の余白 */
+    font-size: 1rem;
+    border: 1px solid #ddd;  /* 枠線（薄いグレー） */
+    border-radius: 4px;  /* 角を丸く */
+    transition: border-color 0.3s;  /* 枠線の色をアニメーション */
+}
+
+.form-control:focus {
+    /*
+     * :focus 擬似クラス
+     * フォーカスがある時（入力中）のスタイル
+     */
+    outline: none;  /* デフォルトのアウトラインを消す */
+    border-color: #007bff;  /* 枠線の色を青に */
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);  /* 青い影 */
+}
+
+/*
+ * エラー状態の入力欄
+ */
+.form-control.is-invalid {
+    border-color: #dc3545;  /* 枠線の色を赤に */
+}
+
+.form-control.is-invalid:focus {
+    box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.25);  /* 赤い影 */
+}
+
+/*
+ * エラーメッセージ
+ */
+.error-message {
+    display: block;
+    color: #dc3545;  /* テキスト色（赤） */
+    font-size: 0.875rem;  /* 小さめのフォント */
+    margin-top: 5px;  /* 上側の余白 */
+}
+
+/*
+ * フォームのアクションボタンエリア
+ */
+.form-actions {
+    margin-top: 30px;
+}
+
+.form-actions .btn {
+    margin-right: 10px;  /* ボタン間のスペース */
+}
+
+/*
+ * フォーム内の情報表示エリア
+ */
+.form-info {
+    background-color: #f8f9fa;  /* 背景色（薄いグレー） */
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.form-info p {
+    margin: 5px 0;
+}
+
+/*
+ * ============================================
+ * アラート・メッセージ
+ * ============================================
+ */
+
+/*
+ * アラートの基本スタイル
+ */
+.alert {
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    border-left: 4px solid;  /* 左側に太い枠線 */
+}
+
+/*
+ * 成功メッセージ
+ */
+.alert-success {
+    background-color: #d4edda;  /* 背景色（薄い緑） */
+    color: #155724;  /* テキスト色（濃い緑） */
+    border-left-color: #28a745;  /* 左枠線の色 */
+}
+
+/*
+ * エラーメッセージ
+ */
+.alert-error {
+    background-color: #f8d7da;  /* 背景色（薄い赤） */
+    color: #721c24;  /* テキスト色（濃い赤） */
+    border-left-color: #dc3545;  /* 左枠線の色 */
+}
+
+/*
+ * ============================================
+ * メモ一覧
+ * ============================================
+ */
+
+/*
+ * 検索ボックス
+ */
+.search-box {
+    margin-bottom: 30px;
+}
+
+.search-box .form-group {
+    display: flex;  /* フレックスボックス */
+    gap: 10px;  /* 要素間のスペース */
+}
+
+.search-box .form-control {
+    flex: 1;  /* 残りのスペースを占める */
+}
+
+/*
+ * アクションバー（新規作成ボタンなど）
+ */
+.action-bar {
+    margin-bottom: 20px;
+    text-align: right;  /* 右揃え */
+}
+
+/*
+ * 空の状態（メモがない場合）
+ */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;  /* テキスト色（グレー） */
+}
+
+.empty-state p:first-child {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+}
+
+/*
+ * メモ一覧
+ */
+.memo-list {
+    display: grid;  /* グリッドレイアウト */
+    /*
+     * CSS Grid
+     * 2次元のレイアウトシステム
+     */
+    gap: 20px;  /* グリッドアイテム間のスペース */
+}
+
+/*
+ * メモアイテム
+ */
+.memo-item {
+    background-color: white;  /* 背景色 */
+    border: 1px solid #ddd;  /* 枠線 */
+    border-radius: 8px;  /* 角を丸く */
+    padding: 20px;
+    transition: all 0.3s;  /* アニメーション */
+}
+
+.memo-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);  /* 影を追加 */
+    transform: translateY(-2px);  /* 上に浮く */
+}
+
+/*
+ * メモのヘッダー部分
+ */
+.memo-header {
+    margin-bottom: 15px;
+}
+
+.memo-title {
+    font-size: 1.25rem;
+    margin: 0 0 10px 0;
+}
+
+.memo-title a {
+    color: #333;  /* テキスト色 */
+}
+
+.memo-title a:hover {
+    color: #007bff;  /* ホバー時は青 */
+}
+
+/*
+ * メモのメタ情報（作成日時など）
+ */
+.memo-meta {
+    color: #999;  /* テキスト色（グレー） */
+    font-size: 0.875rem;
+}
+
+.memo-date {
+    /* 日付のスタイル */
+}
+
+/*
+ * メモの本文プレビュー
+ */
+.memo-content-preview {
+    color: #666;  /* テキスト色（グレー） */
+    margin-bottom: 15px;
+}
+
+.memo-content-preview p {
+    margin: 0;
+    line-height: 1.6;
+}
+
+/*
+ * メモアイテムのアクションボタン
+ */
+.memo-actions {
+    display: flex;
+    gap: 10px;  /* ボタン間のスペース */
+}
+
+.memo-actions form {
+    margin: 0;  /* フォームのマージンをリセット */
+}
+
+/*
+ * ============================================
+ * メモ詳細
+ * ============================================
+ */
+
+.memo-detail {
+    background-color: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.memo-detail .memo-title {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;  /* 下線 */
+}
+
+.memo-detail .memo-meta {
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.memo-detail .memo-meta p {
+    margin: 5px 0;
+}
+
+.memo-detail .memo-content {
+    margin-bottom: 30px;
+    line-height: 1.8;
+}
+
+.memo-detail .memo-actions {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 20px;
+}
+
+/*
+ * ============================================
+ * エラーページ
+ * ============================================
+ */
+
+.error-page {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.error-icon {
+    margin-bottom: 30px;
+}
+
+.error-page h1 {
+    font-size: 2rem;
+    color: #dc3545;
+    margin-bottom: 20px;
+}
+
+.error-message-box {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 20px;
+    margin-bottom: 30px;
+    color: #721c24;
+}
+
+.error-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+/*
+ * ============================================
+ * レスポンシブデザイン
+ * ============================================
+ *
+ * メディアクエリを使って、画面サイズに応じてスタイルを変える
+ */
+
+/*
+ * タブレット以下（768px以下）
+ */
+@media (max-width: 768px) {
+    /*
+     * @media
+     * 特定の条件（画面幅など）で適用されるスタイル
+     */
+
+    .container {
+        padding: 0 15px;
+    }
+
+    .navbar .container {
+        flex-direction: column;  /* 縦並び */
+        align-items: flex-start;  /* 左揃え */
+    }
+
+    .navbar-nav {
+        margin-top: 10px;
+        flex-wrap: wrap;  /* 折り返し */
+    }
+
+    .nav-item {
+        margin-left: 0;
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+
+    .memo-detail {
+        padding: 20px;
+    }
+
+    .memo-detail .memo-title {
+        font-size: 1.5rem;
+    }
+
+    .search-box .form-group {
+        flex-direction: column;  /* 縦並び */
+    }
+
+    .action-bar {
+        text-align: center;
+    }
+
+    .error-actions {
+        flex-direction: column;
+    }
+}
+
+/*
+ * スマートフォン（480px以下）
+ */
+@media (max-width: 480px) {
+    body {
+        font-size: 14px;  /* フォントサイズを小さく */
+    }
+
+    .navbar-brand {
+        font-size: 1.25rem;
+    }
+
+    .memo-item {
+        padding: 15px;
+    }
+
+    .btn {
+        width: 100%;  /* ボタンを横幅いっぱいに */
+        margin-bottom: 10px;
+    }
+
+    .btn-sm {
+        width: auto;  /* 小さいボタンは自動 */
+    }
+
+    .memo-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+        margin-right: 0;
+    }
+}
+
+/*
+ * ============================================
+ * ユーティリティクラス
+ * ============================================
+ */
+
+/*
+ * マージン
+ */
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+
+/*
+ * テキスト揃え
+ */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+/*
+ * 表示・非表示
+ */
+.d-none { display: none !important; }
+.d-block { display: block !important; }
+.d-inline-block { display: inline-block !important; }

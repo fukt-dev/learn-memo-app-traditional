@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<!--
+    ============================================
+    メモ新規作成画面
+    ============================================
+
+    【この画面の役割】
+    新しいメモを作成するためのフォームを表示します
+
+    【URL】
+    GET /memos/new
+
+    【POST先】
+    POST /memos
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新規作成 - メモ帳アプリ</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <a th:href="@{/memos}" class="navbar-brand">メモ帳アプリ</a>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a th:href="@{/memos}" class="nav-link">一覧</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/memos/new}" class="nav-link active">新規作成</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <h1>メモ新規作成</h1>
+
+        <!--
+            ============================================
+            メモ作成フォーム
+            ============================================
+        -->
+        <form th:action="@{/memos}" th:object="${memoDto}" method="post" class="memo-form">
+            <!--
+                th:action="@{/memos}"
+                → フォームの送信先: POST /memos
+
+                th:object="${memoDto}"
+                → フォームにバインドするオブジェクト
+                Controllerで model.addAttribute("memoDto", new MemoDto()) している
+
+                このオブジェクトを指定することで、
+                th:field="*{title}" のように簡潔に書ける
+
+                method="post"
+                → POSTメソッドで送信
+            -->
+
+            <!-- ========================================
+                 タイトル入力
+                 ======================================== -->
+            <div class="form-group">
+                <label for="title">タイトル</label>
+                <!--
+                    th:field="*{title}"
+                    → th:object で指定したオブジェクト（memoDto）の title プロパティにバインド
+
+                    【th:field が自動生成するもの】
+                    1. id="title" → <label for="title"> と対応
+                    2. name="title" → POST時にこの名前でパラメータが送信される
+                    3. value="${memoDto.title}" → memoDtoのtitleの値が初期値になる
+
+                    つまり、以下のように展開される:
+                    <input type="text" id="title" name="title" value="..." />
+
+                    【*{title} と ${memoDto.title} の違い】
+                    th:object="${memoDto}" を指定している場合:
+                    *{title} → ${memoDto.title} と同じ
+                    より簡潔に書ける
+
+                    th:classappend
+                    → クラスを追加する（既存のクラスは維持）
+
+                    ${#fields.hasErrors('title')} ? 'is-invalid' : ''
+                    → titleフィールドにエラーがあれば 'is-invalid' クラスを追加
+                -->
+                <input type="text"
+                       th:field="*{title}"
+                       class="form-control"
+                       th:classappend="${#fields.hasErrors('title')} ? 'is-invalid' : ''"
+                       placeholder="タイトルを入力してください">
+
+                <!--
+                    バリデーションエラーメッセージの表示
+
+                    th:if="${#fields.hasErrors('title')}"
+                    → titleフィールドにエラーがある場合のみ表示
+
+                    #fields: Thymeleafのフォームユーティリティ
+                    #fields.hasErrors('フィールド名')
+                    → 指定したフィールドにエラーがあるか判定
+
+                    th:errors="*{title}"
+                    → titleフィールドのエラーメッセージを表示
+
+                    【エラーメッセージの元】
+                    MemoDto.java:
+                    @NotBlank(message = "タイトルを入力してください")
+                    @Size(min = 1, max = 200, message = "タイトルは1文字以上200文字以内...")
+                    private String title;
+
+                    バリデーションエラーがあると、message の内容がここに表示される
+                -->
+                <span th:if="${#fields.hasErrors('title')}"
+                      th:errors="*{title}"
+                      class="error-message">
+                    エラーメッセージ
+                </span>
+            </div>
+
+            <!-- ========================================
+                 本文入力
+                 ======================================== -->
+            <div class="form-group">
+                <label for="content">本文</label>
+                <!--
+                    <textarea> でth:field を使う場合:
+                    - value 属性ではなく、テキストノードに値が設定される
+                    - rows: 表示行数（デフォルトの高さ）
+                -->
+                <textarea th:field="*{content}"
+                          class="form-control"
+                          th:classappend="${#fields.hasErrors('content')} ? 'is-invalid' : ''"
+                          rows="10"
+                          placeholder="本文を入力してください"></textarea>
+
+                <!-- エラーメッセージ -->
+                <span th:if="${#fields.hasErrors('content')}"
+                      th:errors="*{content}"
+                      class="error-message">
+                    エラーメッセージ
+                </span>
+            </div>
+
+            <!-- ========================================
+                 ボタン
+                 ======================================== -->
+            <div class="form-actions">
+                <!--
+                    type="submit"
+                    → フォームを送信するボタン
+                    クリックすると、th:action で指定したURLにPOSTされる
+                -->
+                <button type="submit" class="btn btn-primary">登録</button>
+
+                <!--
+                    type="button"
+                    → 通常のボタン（フォーム送信しない）
+                    onclick でJavaScriptを実行
+                -->
+                <a th:href="@{/memos}" class="btn btn-secondary">キャンセル</a>
+            </div>
+        </form>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|">
+                &copy; 2025 メモ帳アプリ
+            </p>
+        </div>
+    </footer>
+
+    <script th:src="@{/js/script.js}"></script>
+</body>
+</html>
+
+<!--
+    ============================================
+    フォーム送信の流れ
+    ============================================
+
+    1. ユーザーがタイトルと本文を入力
+
+    2. 「登録」ボタンをクリック
+
+    3. ブラウザが POST /memos を送信
+       Content-Type: application/x-www-form-urlencoded
+       Body: title=買い物リスト&content=牛乳を買う
+
+    4. MemoController.create() が呼ばれる
+       @PostMapping("")
+       public String create(@Valid MemoDto memoDto, BindingResult result) {
+           ...
+       }
+
+    5. Spring MVCが自動的にMemoDtoにバインド
+       memoDto.setTitle("買い物リスト")
+       memoDto.setContent("牛乳を買う")
+
+    6. @Valid によりバリデーション実行
+       - @NotBlank のチェック
+       - @Size のチェック
+
+    7-a. エラーがある場合:
+       result.hasErrors() == true
+       return "memos/new"  ← この画面に戻る
+       エラーメッセージが表示される
+
+    7-b. エラーがない場合:
+       memoService.create(memoDto)  ← データベースに登録
+       return "redirect:/memos"  ← 一覧画面にリダイレクト
+
+    ============================================
+    バリデーションエラーの表示例
+    ============================================
+
+    【ケース1: タイトルが空の場合】
+    input:
+    title = ""
+    content = "牛乳を買う"
+
+    result:
+    BindingResult に以下のエラーが格納される:
+    - field: "title"
+    - message: "タイトルを入力してください" (@NotBlank のmessage)
+
+    HTML:
+    <input type="text" th:field="*{title}" class="form-control is-invalid">
+    <span class="error-message">タイトルを入力してください</span>
+
+    【ケース2: タイトルが201文字の場合】
+    input:
+    title = "あ" × 201
+    content = "本文"
+
+    result:
+    BindingResult に以下のエラーが格納される:
+    - field: "title"
+    - message: "タイトルは1文字以上200文字以内で入力してください" (@Size のmessage)
+
+    HTML:
+    <span class="error-message">タイトルは1文字以上200文字以内で入力してください</span>
+
+    ============================================
+    セキュリティ対策（XSS防止）
+    ============================================
+
+    【Thymeleafの自動エスケープ】
+    th:text, th:field などは自動的にHTMLエスケープされる
+
+    例:
+    ユーザーが以下のように入力:
+    title = "<script>alert('XSS')</script>"
+
+    Thymeleafで表示:
+    <span th:text="${memo.title}"></span>
+
+    レンダリング結果:
+    <span>&lt;script&gt;alert('XSS')&lt;/script&gt;</span>
+
+    → <script> が実行されない（安全）
+
+    【エスケープしない場合】
+    th:utext を使うとエスケープされない（通常は使わない）
+    <span th:utext="${memo.title}"></span>
+    → <script> が実行されてしまう（危険）
+
+    ============================================
+    HTMLをそのまま開いた場合
+    ============================================
+
+    このHTMLファイルをブラウザで直接開くと、
+    th:* 属性は無視され、デフォルト値が表示される
+
+    例:
+    <input type="text" th:field="*{title}" placeholder="タイトルを入力してください">
+    → placeholder の値が表示される
+
+    <span th:if="${#fields.hasErrors('title')}" class="error-message">
+        エラーメッセージ
+    </span>
+    → "エラーメッセージ" がそのまま表示される
+
+    これにより、デザイナーがSpring Bootを起動しなくても、
+    HTMLの見た目を確認できる（Natural Templating）
+-->

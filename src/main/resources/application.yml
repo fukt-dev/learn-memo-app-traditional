@@ -1,0 +1,197 @@
+# ============================================
+# Spring Boot アプリケーション設定ファイル
+# ============================================
+#
+# このファイルでアプリケーション全体の設定を行います
+# YAML形式で書かれており、インデント（字下げ）が重要です
+#
+
+# --------------------------------------------
+# Spring 関連の設定
+# --------------------------------------------
+spring:
+
+  # アプリケーション名
+  # ログやモニタリングツールで表示される名前
+  application:
+    name: memo-app
+
+  # --------------------------------------------
+  # Thymeleaf（テンプレートエンジン）の設定
+  # --------------------------------------------
+  thymeleaf:
+    # キャッシュを無効化するか
+    # false: 開発時はファイルを変更したらすぐ反映される
+    # true: 本番環境ではキャッシュを有効にしてパフォーマンス向上
+    cache: false
+
+    # テンプレートファイルの文字エンコーディング
+    encoding: UTF-8
+
+    # テンプレートのモード（HTML, XML, TEXT など）
+    mode: HTML
+
+    # テンプレートファイルの場所
+    # resources/templates/ フォルダの中にHTMLファイルを置く
+    prefix: classpath:/templates/
+
+    # テンプレートファイルの拡張子
+    # つまり、"memos/list" と指定したら "templates/memos/list.html" を探す
+    suffix: .html
+
+  # --------------------------------------------
+  # データソース（データベース接続）の設定
+  # --------------------------------------------
+  datasource:
+    # データベース接続URL
+    # jdbc:postgresql://ホスト名:ポート番号/データベース名
+    # localhost:5432 は、自分のPC上のPostgreSQLの標準ポート
+    url: jdbc:postgresql://localhost:5432/memoapp
+
+    # データベースのユーザー名
+    # docker-compose.ymlで設定した値と一致させる
+    username: memoapp_user
+
+    # データベースのパスワード
+    # 本番環境では環境変数から読み込むなど、セキュアな方法で管理する
+    password: memoapp_pass
+
+    # データベースドライバのクラス名
+    # PostgreSQLを使う場合はこの値を指定
+    driver-class-name: org.postgresql.Driver
+
+    # HikariCP（コネクションプール）の設定
+    # コネクションプールとは、データベース接続を使い回す仕組み
+    # 毎回接続を作り直すと遅いので、プールしておく
+    hikari:
+      # プールに保持する最大接続数
+      # 多すぎるとデータベースに負荷がかかる
+      # 少なすぎると同時アクセス時に待たされる
+      maximum-pool-size: 10
+
+      # プールに保持する最小接続数（アイドル接続数）
+      # 常にこの数だけ接続を確保しておく
+      minimum-idle: 5
+
+      # 接続タイムアウト（ミリ秒）
+      # この時間内に接続できなければエラー
+      connection-timeout: 30000
+
+  # --------------------------------------------
+  # Flyway（データベースマイグレーション）の設定
+  # --------------------------------------------
+  flyway:
+    # Flywayを有効にするか
+    # true: アプリ起動時にマイグレーションを自動実行
+    enabled: true
+
+    # ベースライン設定
+    # 既存のデータベースがある場合、マイグレーションの起点を作る
+    baseline-on-migrate: true
+
+    # マイグレーションファイルの場所
+    # resources/db/migration/ フォルダにSQLファイルを置く
+    locations: classpath:db/migration
+
+    # マイグレーションファイルの文字エンコーディング
+    encoding: UTF-8
+
+  # --------------------------------------------
+  # メッセージソース（エラーメッセージなど）の設定
+  # --------------------------------------------
+  messages:
+    # メッセージファイルのベース名
+    # resources/messages.properties を読み込む
+    # messages_ja.properties があれば日本語メッセージを使う
+    basename: messages
+
+    # メッセージファイルの文字エンコーディング
+    encoding: UTF-8
+
+# --------------------------------------------
+# MyBatis の設定
+# --------------------------------------------
+mybatis:
+
+  # Mapper XMLファイルの場所
+  # resources/mybatis/mapper/ フォルダ配下の全XMLファイルを読み込む
+  # **/*.xml は「どんなフォルダの中でも、全てのXMLファイル」という意味
+  mapper-locations: classpath:mybatis/mapper/**/*.xml
+
+  # 型エイリアスのパッケージ
+  # このパッケージ内のクラスは、完全修飾名（com.example...）を書かなくてもOK
+  # 例: "Memo" と書くだけで "com.example.memoapp.entity.Memo" を指す
+  type-aliases-package: com.example.memoapp.entity
+
+  # MyBatisの詳細設定
+  configuration:
+
+    # スネークケース（例: created_at）とキャメルケース（例: createdAt）の自動変換
+    # true: データベースのcreated_atカラムが、JavaのcreatedAtプロパティに自動でマッピングされる
+    # これにより、SQL内で "AS createdAt" と書く必要がなくなる
+    map-underscore-to-camel-case: true
+
+    # SQL実行ログの出力
+    # 開発時: StdOutImpl を使ってコンソールに出力
+    # 本番環境: Slf4jImpl を使ってログファイルに出力
+    # 実際に実行されるSQLが見えるので、デバッグに便利
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# --------------------------------------------
+# サーバー設定
+# --------------------------------------------
+server:
+
+  # アプリケーションが起動するポート番号
+  # http://localhost:8080 でアクセスできる
+  # 既に8080が使われている場合は、8081など別の番号に変更
+  port: 8080
+
+  # サーブレット設定
+  servlet:
+
+    # コンテキストパス（アプリケーションのルートパス）
+    # "/" の場合、http://localhost:8080/ がルート
+    # "/memo-app" にすると、http://localhost:8080/memo-app/ がルート
+    context-path: /
+
+    # 文字エンコーディング設定
+    encoding:
+      # 文字エンコーディング（UTF-8を使う）
+      charset: UTF-8
+
+      # エンコーディングフィルタを有効化
+      enabled: true
+
+      # リクエスト・レスポンス両方に強制的にUTF-8を適用
+      force: true
+
+# --------------------------------------------
+# ロギング設定
+# --------------------------------------------
+logging:
+
+  # ログレベルの設定
+  # TRACE < DEBUG < INFO < WARN < ERROR
+  # レベルを指定すると、それ以上の重要度のログが出力される
+  level:
+
+    # ルートロガー（すべてのログのデフォルト）
+    # INFO: 通常の動作ログを出力
+    root: INFO
+
+    # 自分のアプリケーションのログレベル
+    # DEBUG: 詳細なデバッグ情報を出力（開発時に便利）
+    com.example.memoapp: DEBUG
+
+    # MyBatis Mapperのログレベル
+    # DEBUG: 実行されるSQLとパラメータが見える
+    com.example.memoapp.mapper: DEBUG
+
+    # Spring MVC のログレベル（オプション）
+    # HTTPリクエストの詳細を見たい場合はコメントを外す
+    # org.springframework.web: DEBUG
+
+    # HikariCP（コネクションプール）のログレベル（オプション）
+    # 接続プールの動作を見たい場合はコメントを外す
+    # com.zaxxer.hikari: DEBUG

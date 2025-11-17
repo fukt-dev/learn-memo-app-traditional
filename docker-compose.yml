@@ -1,0 +1,197 @@
+# ============================================
+# Docker Compose 設定ファイル
+# ============================================
+#
+# このファイルでローカル開発環境用のPostgreSQLデータベースを起動します
+#
+# 【Docker Composeとは】
+# 複数のDockerコンテナを簡単に管理するツールです
+# コンテナとは、アプリケーションを動かすための「仮想的な箱」のようなもの
+# ここではPostgreSQLデータベースのコンテナを1つ起動します
+#
+# 【使い方】
+# 1. 起動: docker-compose up -d
+#    (-d はバックグラウンドで起動するオプション)
+#
+# 2. 停止: docker-compose down
+#
+# 3. ログ確認: docker-compose logs -f postgres
+#    (-f はリアルタイムでログを見続けるオプション)
+#
+# 4. データベースに接続: docker-compose exec postgres psql -U memoapp_user -d memoapp
+#    (psqlはPostgreSQLのコマンドラインツール)
+#
+
+# Docker Composeのバージョン
+# 3.8は比較的新しく、安定したバージョン
+version: '3.8'
+
+# --------------------------------------------
+# サービス定義
+# --------------------------------------------
+# サービスとは、起動したいコンテナの設定のこと
+# ここでは「postgres」という名前のサービスを1つ定義します
+services:
+
+  # PostgreSQLデータベースのサービス
+  postgres:
+
+    # 使用するDockerイメージ
+    # postgres:16-alpine は PostgreSQL 16 の軽量版
+    # alpine = 軽量なLinuxディストリビューション
+    # 他のバージョンを使いたい場合は、postgres:15-alpine などに変更可能
+    image: postgres:16-alpine
+
+    # コンテナ名
+    # docker ps コマンドで表示される名前
+    # わかりやすい名前をつけることで、管理しやすくなる
+    container_name: memoapp-postgres
+
+    # 環境変数の設定
+    # PostgreSQLコンテナに渡す設定値
+    # これらの値は application.yml の設定と一致させる必要があります
+    environment:
+      # データベース名
+      # アプリケーションが接続するデータベースの名前
+      # application.yml の spring.datasource.url の memoapp と一致
+      POSTGRES_DB: memoapp
+
+      # データベースのユーザー名
+      # アプリケーションがデータベースに接続する際のユーザー名
+      # application.yml の spring.datasource.username と一致
+      POSTGRES_USER: memoapp_user
+
+      # データベースのパスワード
+      # セキュリティのため、本番環境では必ず変更してください
+      # application.yml の spring.datasource.password と一致
+      POSTGRES_PASSWORD: memoapp_pass
+
+      # PostgreSQLの文字エンコーディング
+      # UTF8 = 日本語を含むあらゆる文字を扱える
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+
+      # タイムゾーン設定
+      # 日本時間（JST = Japan Standard Time）に設定
+      # これにより、データベース内の時刻が日本時間になる
+      TZ: Asia/Tokyo
+
+    # ポートのマッピング
+    # "ホスト側のポート:コンテナ側のポート"
+    # 5432:5432 = ホストの5432番ポートをコンテナの5432番ポートに接続
+    #
+    # 【これにより何ができるか】
+    # - アプリケーションから localhost:5432 でPostgreSQLに接続できる
+    # - pgAdminなどのGUIツールからも localhost:5432 で接続できる
+    #
+    # 【注意】
+    # もし既にホスト側で5432番ポートが使われている場合は、
+    # "5433:5432" のように左側の番号を変更してください
+    # その場合、application.yml の url も localhost:5433 に変更が必要
+    ports:
+      - "5432:5432"
+
+    # ボリュームのマッピング
+    # コンテナを削除してもデータが消えないようにする仕組み
+    #
+    # 【ボリュームとは】
+    # Dockerコンテナのデータは通常、コンテナを削除すると消えてしまいます
+    # ボリュームを使うと、データをホスト側に保存できるため、
+    # コンテナを削除してもデータが残ります
+    #
+    # 【postgres-data とは】
+    # 下の volumes: セクションで定義した名前付きボリューム
+    # /var/lib/postgresql/data はPostgreSQLがデータを保存する場所
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+      # 初期化スクリプト（オプション）
+      # もし起動時に実行したいSQLがある場合は、以下のようにマウントできます
+      # コンテナの /docker-entrypoint-initdb.d/ に置いたSQLは初回起動時に自動実行される
+      # 例: プロジェクトルートに init.sql を作成して以下のコメントを外す
+      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    # ヘルスチェック
+    # コンテナが正常に動作しているかを定期的に確認する
+    #
+    # 【なぜ必要か】
+    # コンテナが起動していても、PostgreSQLが実際に接続可能な状態とは限りません
+    # ヘルスチェックにより、本当に使える状態になったかを確認できます
+    healthcheck:
+      # 実行するコマンド
+      # pg_isready = PostgreSQLが接続可能かをチェックするコマンド
+      # -U memoapp_user = memoapp_user で接続可能かを確認
+      test: ["CMD-SHELL", "pg_isready -U memoapp_user"]
+
+      # チェック間隔（10秒ごと）
+      interval: 10s
+
+      # タイムアウト（5秒以内に応答がなければ失敗）
+      timeout: 5s
+
+      # リトライ回数（5回失敗したら unhealthy とみなす）
+      retries: 5
+
+    # 再起動ポリシー
+    # コンテナが停止した場合の動作を指定
+    #
+    # unless-stopped = 手動で停止するまで、常に再起動を試みる
+    # - PCを再起動してもDockerが起動すれば自動的にコンテナも起動する
+    # - エラーで停止した場合も自動的に再起動する
+    # - docker-compose down で明示的に停止した場合は再起動しない
+    #
+    # 他のオプション:
+    # - no: 再起動しない
+    # - always: 常に再起動（docker-compose down でも再起動する）
+    # - on-failure: エラーで停止した場合のみ再起動
+    restart: unless-stopped
+
+# --------------------------------------------
+# ボリューム定義
+# --------------------------------------------
+# ここで定義したボリュームは、Dockerが管理する永続化領域として作成されます
+# docker volume ls コマンドで確認できます
+volumes:
+  # PostgreSQLのデータを保存するボリューム
+  # このボリューム名は上の services.postgres.volumes で指定した名前と一致
+  postgres-data:
+    # driver: local = ホストマシンのディスクに保存
+    # 他のオプション: nfs（ネットワークストレージ）など
+    driver: local
+
+# ============================================
+# トラブルシューティング
+# ============================================
+#
+# 【コンテナが起動しない場合】
+# 1. ポートが既に使われていないか確認:
+#    lsof -i :5432 (Mac/Linux)
+#    netstat -ano | findstr :5432 (Windows)
+#
+# 2. ログを確認:
+#    docker-compose logs postgres
+#
+# 3. コンテナの状態を確認:
+#    docker-compose ps
+#
+# 【データをリセットしたい場合】
+# 1. コンテナとボリュームを削除:
+#    docker-compose down -v
+#    (-v オプションでボリュームも削除される)
+#
+# 2. 再度起動:
+#    docker-compose up -d
+#
+# 【データベースに直接接続したい場合】
+# 方法1: コンテナ内でpsqlを実行
+#    docker-compose exec postgres psql -U memoapp_user -d memoapp
+#
+# 方法2: ホストからpsqlで接続（psqlがインストールされている場合）
+#    psql -h localhost -p 5432 -U memoapp_user -d memoapp
+#
+# 方法3: GUIツール（pgAdmin, DBeaver など）を使用
+#    ホスト: localhost
+#    ポート: 5432
+#    データベース: memoapp
+#    ユーザー名: memoapp_user
+#    パスワード: memoapp_pass
+#
