@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<!--
+    ============================================
+    メモ詳細画面
+    ============================================
+
+    【この画面の役割】
+    1つのメモの詳細情報を表示します
+
+    【URL】
+    GET /memos/{id}
+-->
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${memo.title} + ' - メモ帳アプリ'">メモ詳細 - メモ帳アプリ</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <a th:href="@{/memos}" class="navbar-brand">メモ帳アプリ</a>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a th:href="@{/memos}" class="nav-link">一覧</a>
+                    </li>
+                    <li class="nav-item">
+                        <a th:href="@{/memos/new}" class="nav-link">新規作成</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container">
+        <!-- フラッシュメッセージ -->
+        <div th:if="${successMessage}" class="alert alert-success">
+            <span th:text="${successMessage}"></span>
+        </div>
+
+        <!-- メモ詳細 -->
+        <article class="memo-detail">
+            <!-- タイトル -->
+            <h1 class="memo-title" th:text="${memo.title}">メモのタイトル</h1>
+
+            <!-- メタ情報 -->
+            <div class="memo-meta">
+                <p>
+                    <strong>作成日時:</strong>
+                    <span th:text="${memo.createdAtFormatted}">2025年11月17日 10:30</span>
+                </p>
+                <p>
+                    <strong>更新日時:</strong>
+                    <span th:text="${memo.updatedAtFormatted}">2025年11月17日 15:45</span>
+                </p>
+            </div>
+
+            <!-- 本文 -->
+            <div class="memo-content">
+                <!--
+                    th:text では改行が保持されない
+                    代わりに、white-space: pre-wrap をCSSで指定して改行を保持する
+
+                    または、th:utext を使うこともできるが、XSSの危険があるので注意
+                -->
+                <p th:text="${memo.content}" style="white-space: pre-wrap;">
+                    メモの本文がここに表示されます。
+                    改行も保持されます。
+                </p>
+            </div>
+
+            <!-- アクションボタン -->
+            <div class="memo-actions">
+                <!-- 編集 -->
+                <a th:href="@{/memos/{id}/edit(id=${memo.id})}" class="btn btn-primary">
+                    編集
+                </a>
+
+                <!-- 削除 -->
+                <form th:action="@{/memos/{id}/delete(id=${memo.id})}"
+                      method="post"
+                      style="display: inline;">
+                    <button type="submit"
+                            class="btn btn-danger"
+                            onclick="return confirm('本当に削除しますか？')">
+                        削除
+                    </button>
+                </form>
+
+                <!-- 一覧に戻る -->
+                <a th:href="@{/memos}" class="btn btn-secondary">
+                    一覧に戻る
+                </a>
+            </div>
+        </article>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|">
+                &copy; 2025 メモ帳アプリ
+            </p>
+        </div>
+    </footer>
+
+    <script th:src="@{/js/script.js}"></script>
+</body>
+</html>

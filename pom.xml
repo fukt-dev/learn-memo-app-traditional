@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+        親プロジェクト: Spring Boot Starter Parent
+        これを指定することで、Spring Bootの依存関係のバージョンが自動で管理される
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.1</version>
+        <relativePath/>
+    </parent>
+
+    <!--
+        このプロジェクトの基本情報
+        - groupId: プロジェクトのグループ名（通常は企業のドメインを逆にしたもの）
+        - artifactId: プロジェクト名
+        - version: バージョン番号（SNAPSHOT = 開発中）
+    -->
+    <groupId>com.example</groupId>
+    <artifactId>memo-app</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <name>memo-app</name>
+    <description>Traditional Memo Application with Spring Boot, MyBatis, and PostgreSQL</description>
+
+    <!--
+        プロパティ設定
+        ここで定義した変数を、dependenciesセクションで使える
+    -->
+    <properties>
+        <!-- 使用するJavaのバージョン -->
+        <java.version>17</java.version>
+
+        <!-- MyBatis Spring Boot Starterのバージョン -->
+        <mybatis-spring-boot.version>3.0.3</mybatis-spring-boot.version>
+
+        <!-- プロジェクトのソースコードの文字エンコーディング -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <!--
+        依存関係（dependencies）
+        ここに書いたライブラリを、Mavenが自動でダウンロードしてくれる
+        必要なライブラリを1つずつ追加していく
+    -->
+    <dependencies>
+
+        <!-- ========================================
+             Spring Boot 関連
+             ======================================== -->
+
+        <!--
+            Spring Boot Web Starter
+            【何ができる】
+            - Webアプリケーションの基本機能
+            - Spring MVC (Controller, Service, Repositoryなど)
+            - 組み込みTomcat（Webサーバー）
+            - REST APIの作成
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--
+            Spring Boot Thymeleaf Starter
+            【何ができる】
+            - Thymeleaf テンプレートエンジン
+            - HTMLファイルにJavaのデータを埋め込める
+            - 画面（View）の作成に使う
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!--
+            Spring Boot Validation Starter
+            【何ができる】
+            - 入力値のバリデーション（検証）
+            - @NotBlank（必須チェック）
+            - @Size（文字数チェック）などのアノテーションが使える
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- ========================================
+             MyBatis 関連
+             ======================================== -->
+
+        <!--
+            MyBatis Spring Boot Starter
+            【何ができる】
+            - MyBatisの自動設定
+            - Mapperインターフェースの自動検出
+            - 2waySQLの実行
+            - データベースへのアクセス
+        -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+            <version>${mybatis-spring-boot.version}</version>
+        </dependency>
+
+        <!-- ========================================
+             データベース関連
+             ======================================== -->
+
+        <!--
+            PostgreSQL Driver
+            【何ができる】
+            - PostgreSQLデータベースへの接続
+            - SQLの実行
+            scope=runtimeは、コンパイル時には不要で、実行時のみ必要という意味
+        -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!--
+            H2 Database (開発・テスト用)
+            【何ができる】
+            - インメモリデータベース（メモリ上で動くDB）
+            - PostgreSQLがない環境でもテストできる
+            - 開発時の動作確認に便利
+            scope=runtimeは、実行時のみ使用（コンパイル時は不要）
+        -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ========================================
+             Flyway (データベースマイグレーション)
+             ======================================== -->
+
+        <!--
+            Flyway Core
+            【何ができる】
+            - データベースのバージョン管理
+            - テーブル作成・変更のSQL（マイグレーションファイル）を自動実行
+            - チーム開発でのDB構造の同期
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!--
+            Flyway PostgreSQL Support
+            【何ができる】
+            - FlywayでPostgreSQLを使うための拡張機能
+        -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- ========================================
+             開発支援ツール
+             ======================================== -->
+
+        <!--
+            Lombok
+            【何ができる】
+            - ボイラープレートコード（定型的なコード）を自動生成
+            - @Data でgetter/setter/toString/equals/hashCodeを自動生成
+            - @Slf4j でログ出力用のloggerを自動生成
+            - @RequiredArgsConstructor でコンストラクタを自動生成
+            optional=trueは、このライブラリをJARに含めないという意味
+        -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!--
+            Spring Boot DevTools (開発時の自動リロード)
+            【何ができる】
+            - コードを変更したら自動でアプリケーションを再起動
+            - 開発効率が上がる
+            - 本番環境では無効化される
+            scope=runtimeとoptional=trueで、開発時のみ有効
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ========================================
+             テスト関連
+             ======================================== -->
+
+        <!--
+            Spring Boot Test Starter
+            【何ができる】
+            - JUnit 5（テストフレームワーク）
+            - Mockito（モックライブラリ）
+            - Spring Test（Spring用のテストツール）
+            - 単体テスト、統合テストの作成
+            scope=testは、テスト時のみ使用（本番では不要）
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!--
+            MyBatis Spring Boot Starter Test
+            【何ができる】
+            - MyBatis Mapperのテスト
+            - @MybatisTest アノテーションでMapperのテストが簡単に書ける
+        -->
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter-test</artifactId>
+            <version>${mybatis-spring-boot.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!--
+        ビルド設定
+        アプリケーションをビルド（コンパイル、パッケージ化）する方法を定義
+    -->
+    <build>
+        <plugins>
+
+            <!--
+                Spring Boot Maven Plugin
+                【何ができる】
+                - `mvn spring-boot:run` でアプリケーションを起動
+                - `mvn package` で実行可能なJARファイルを作成
+                - Lombokを除外してJARを作成（Lombokは開発時のみ必要）
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- JARファイルからLombokを除外 -->
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
