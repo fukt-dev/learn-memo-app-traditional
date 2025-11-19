@@ -94,14 +94,18 @@
              ======================================== -->
         <div class="search-box">
             <!--
-                th:action="@{/memos/search}"
-                → フォームの送信先を /memos/search に設定
+                th:action="@{/memos}"
+                → フォームの送信先を /memos に設定（検索機能統合）
 
                 method="get"
                 → GETメソッドでリクエストを送信
                 検索はデータを変更しないのでGETを使用
+
+                【RESTful設計】
+                /memos/search ではなく /memos?keyword=xxx を使用
+                一覧表示と検索が同じエンドポイントで統一される
             -->
-            <form th:action="@{/memos/search}" method="get">
+            <form th:action="@{/memos}" method="get">
                 <div class="form-group">
                     <!--
                         name="keyword"

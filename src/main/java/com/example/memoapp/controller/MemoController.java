@@ -128,18 +128,24 @@ public class MemoController {
      */
 
     /**
-     * メモ一覧画面を表示
+     * メモ一覧画面を表示（検索機能統合）
      *
      * 【URL】
      * GET /memos
+     * GET /memos?keyword=xxx
      *
      * 【処理の流れ】
-     * 1. Serviceから全メモを取得
+     * 1. keywordパラメータがある場合は検索、ない場合は全件取得
      * 2. Modelに設定
      * 3. ビュー名を返す
      * 4. Thymeleafがテンプレートをレンダリング
      * 5. HTMLがブラウザに返される
      *
+     * 【RESTful設計】
+     * 一覧取得と検索を同じエンドポイントで処理する
+     * これにより、URLがシンプルになり、一貫性が向上する
+     *
+     * @param keyword 検索キーワード（任意パラメータ）
      * @param model Modelオブジェクト（画面に渡すデータを格納）
      * @return ビュー名（templates/memos/list.html）
      */
@@ -159,29 +165,53 @@ public class MemoController {
      *
      * Webアプリ（HTML）では、主にGETとPOSTを使用
      */
-    public String list(Model model) {
-        /*
-         * Model
-         *
-         * 画面（View）に渡すデータを格納するオブジェクト
-         * Springが自動的に引数に渡してくれる
-         *
-         * model.addAttribute("キー", 値)
-         * → Thymeleafで ${キー} として参照できる
-         */
+    public String list(
+            @RequestParam(name = "keyword", required = false) String keyword,
+            /*
+             * @RequestParam
+             * クエリパラメータを受け取る
+             *
+             * URL: /memos?keyword=買い物
+             * → keyword = "買い物"
+             *
+             * URL: /memos
+             * → keyword = null（required=false のため）
+             *
+             * required = false: 任意パラメータ（なくてもOK）
+             * これにより、一覧表示と検索を同じエンドポイントで処理できる
+             */
+            Model model
+            /*
+             * Model
+             *
+             * 画面（View）に渡すデータを格納するオブジェクト
+             * Springが自動的に引数に渡してくれる
+             *
+             * model.addAttribute("キー", 値)
+             * → Thymeleafで ${キー} として参照できる
+             */
+    ) {
+        log.debug("メモ一覧画面を表示します。検索キーワード: {}", keyword);
 
-        log.debug("メモ一覧画面を表示します");
-
         /*
-         * Serviceから全メモを取得
+         * keywordがある場合は検索、ない場合は全件取得
+         * MemoService.search() 内でnullチェックを行っているため、
+         * ここでは単純に呼び出すだけでOK
          */
-        List<MemoDto> memos = memoService.findAll();
+        List<MemoDto> memos;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            memos = memoService.search(keyword);
+        } else {
+            memos = memoService.findAll();
+        }
 
         /*
          * Modelにデータを設定
          * "memos" → Thymeleaf側で ${memos} として参照可能
+         * "keyword" → 検索後もキーワードをフォームに残すため
          */
         model.addAttribute("memos", memos);
+        model.addAttribute("keyword", keyword);
 
         /*
          * ビュー名を返す
@@ -504,57 +534,6 @@ public class MemoController {
         return "redirect:/memos";
     }
 
-    /**
-     * キーワード検索
-     *
-     * 【URL】
-     * GET /memos/search?keyword=買い物
-     *
-     * @param keyword 検索キーワード（クエリパラメータ）
-     * @param model Modelオブジェクト
-     * @return ビュー名（templates/memos/list.html）
-     */
-    @GetMapping("/search")
-    public String search(
-            @RequestParam(required = false) String keyword,
-            /*
-             * @RequestParam
-             * クエリパラメータを受け取る
-             *
-             * URL: /memos/search?keyword=買い物
-             * → keyword = "買い物"
-             *
-             * URL: /memos/search
-             * → keyword = null（required=false のため）
-             *
-             * required = true（デフォルト）: 必須パラメータ
-             * required = false: 任意パラメータ（なくてもOK）
-             *
-             * defaultValue = "": デフォルト値を指定
-             */
-            Model model
-    ) {
-        log.debug("キーワード検索: keyword={}", keyword);
-
-        /*
-         * Serviceで検索
-         * keywordがnullまたは空の場合は全件取得
-         */
-        List<MemoDto> memos = memoService.search(keyword);
-
-        /*
-         * Modelに設定
-         * 検索結果と検索キーワードの両方を渡す
-         */
-        model.addAttribute("memos", memos);
-        model.addAttribute("keyword", keyword);
-
-        /*
-         * 一覧画面を表示
-         * 検索結果も一覧画面で表示する
-         */
-        return "memos/list";
-    }
 }
 
 /*
