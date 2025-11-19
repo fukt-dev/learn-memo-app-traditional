@@ -150,7 +150,7 @@ mvn spring-boot:run
 ### 1. リポジトリのクローン
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/fukt-dev/learn-memo-app-traditional.git
 cd learn-memo-app-traditional
 ```
 
