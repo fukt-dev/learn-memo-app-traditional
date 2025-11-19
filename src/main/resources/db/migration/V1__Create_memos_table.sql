@@ -144,13 +144,24 @@ CREATE INDEX idx_memos_created_at ON memos (created_at DESC);
 -- - 部分一致検索が速くなる
 --
 -- 【使用例】
--- WHERE to_tsvector('japanese', title || ' ' || content) @@ to_tsquery('japanese', 'キーワード')
+-- WHERE to_tsvector('simple', title || ' ' || content) @@ plainto_tsquery('simple', 'キーワード')
 -- このクエリが高速に実行できる
+--
+-- 【text search configurationについて】
+-- 'simple': 基本的なトークン化（全PostgreSQLに標準搭載）
+--   - 単語の分割、大文字小文字の正規化などの基本処理
+--   - 日本語も基本的な検索が可能
+--
+-- 'japanese': 日本語専用設定（別途拡張が必要）
+--   - postgres:16-alpineには含まれていない
+--   - 本格的な日本語形態素解析が必要な場合は pg_bigm や pgroonga を検討
+--
+-- このアプリでは学習用としてLIKE検索を使用するため、simple設定で十分です
 --
 -- 【注意】
 -- PostgreSQLの全文検索は英語に比べて日本語は精度が低い場合があります
 -- より高度な日本語検索が必要な場合は、pg_bigmやElasticsearchの利用を検討してください
-CREATE INDEX idx_memos_fulltext ON memos USING GIN (to_tsvector('japanese', title || ' ' || content));
+CREATE INDEX idx_memos_fulltext ON memos USING GIN (to_tsvector('simple', title || ' ' || content));
 
 -- ============================================
 -- トリガー関数の作成
