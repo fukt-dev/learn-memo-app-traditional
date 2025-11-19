@@ -76,6 +76,81 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class GlobalExceptionHandler {
 
     /**
+     * MemoNotFoundException のハンドラ
+     *
+     * 【MemoNotFoundExceptionとは】
+     * メモが見つからない場合にスローされるカスタム例外
+     * @ResponseStatus(HttpStatus.NOT_FOUND) により404を返す
+     *
+     * 【このハンドラの役割】
+     * MemoNotFoundExceptionをキャッチして、
+     * わかりやすいエラー画面を表示する
+     *
+     * 【処理の流れ】
+     * 1. MemoService.findById(999) を呼ぶ（存在しないID）
+     * 2. MemoNotFoundException がスローされる
+     * 3. このメソッドが自動的に呼ばれる
+     * 4. WARNレベルでログ出力（ERRORより低い）
+     * 5. エラー画面が表示される
+     * 6. HTTPステータス 404 が返される
+     *
+     * 【IllegalArgumentExceptionとの違い】
+     * - IllegalArgumentException: ERROR レベル、400ステータス
+     * - MemoNotFoundException: WARN レベル、404ステータス
+     *
+     * メモが見つからないのは、システムエラーではなく、
+     * 「リソースが存在しない」という正常な応答なので、
+     * WARNレベルが適切
+     *
+     * @param ex 発生した例外オブジェクト
+     * @param model Modelオブジェクト（エラー画面に渡すデータ）
+     * @return ビュー名（templates/error/error.html）
+     */
+    @ExceptionHandler(MemoNotFoundException.class)
+    public String handleMemoNotFoundException(
+            MemoNotFoundException ex,
+            /*
+             * 発生した例外オブジェクト
+             * ex.getMessage() でエラーメッセージを取得できる
+             */
+            Model model
+            /*
+             * Modelオブジェクト
+             * エラー画面に渡すデータを設定する
+             */
+    ) {
+        /*
+         * WARNログを出力
+         *
+         * log.warn():
+         * - WARN レベルのログ
+         * - ERROR より低い（重大度が低い）
+         * - 本番環境でも出力される
+         * - リソースが見つからないのはシステムエラーではない
+         *
+         * ERRORとWARNの使い分け:
+         * - ERROR: システムの異常、予期しないエラー
+         * - WARN: 正常だが注意すべき状況
+         */
+        log.warn("メモが見つかりませんでした: {}", ex.getMessage());
+
+        /*
+         * Modelにエラーメッセージを設定
+         * エラー画面で表示するため
+         */
+        model.addAttribute("errorMessage", ex.getMessage());
+
+        /*
+         * エラー画面のビュー名を返す
+         * templates/error/error.html を表示
+         *
+         * HTTPステータスは @ResponseStatus(HttpStatus.NOT_FOUND) により
+         * 自動的に404になる
+         */
+        return "error/error";
+    }
+
+    /**
      * IllegalArgumentException のハンドラ
      *
      * 【IllegalArgumentExceptionとは】

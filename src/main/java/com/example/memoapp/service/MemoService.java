@@ -2,6 +2,7 @@ package com.example.memoapp.service;
 
 import com.example.memoapp.dto.MemoDto;
 import com.example.memoapp.entity.Memo;
+import com.example.memoapp.exception.MemoNotFoundException;
 import com.example.memoapp.mapper.MemoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -195,7 +196,7 @@ public class MemoService {
      *
      * @param id メモID
      * @return メモのDTO
-     * @throws IllegalArgumentException メモが見つからない場合
+     * @throws MemoNotFoundException メモが見つからない場合
      */
     public MemoDto findById(Long id) {
         log.debug("メモを取得します: id={}", id);
@@ -217,14 +218,19 @@ public class MemoService {
                  * Optionalの中身がない場合: 例外をスロー
                  *
                  * ラムダ式の説明:
-                 * () -> new IllegalArgumentException("メモが見つかりません: id=" + id)
+                 * () -> new MemoNotFoundException("メモが見つかりません: id=" + id)
                  *
                  * これは以下の省略形:
                  * () -> {
-                 *     return new IllegalArgumentException("メモが見つかりません: id=" + id);
+                 *     return new MemoNotFoundException("メモが見つかりません: id=" + id);
                  * }
+                 *
+                 * 【MemoNotFoundExceptionについて】
+                 * - @ResponseStatus(HttpStatus.NOT_FOUND) により404を返す
+                 * - GlobalExceptionHandlerで専用ハンドリングが可能
+                 * - IllegalArgumentException（400）より適切なHTTPステータス
                  */
-                .orElseThrow(() -> new IllegalArgumentException("メモが見つかりません: id=" + id));
+                .orElseThrow(() -> new MemoNotFoundException("メモが見つかりません: id=" + id));
 
         /*
          * 【Optionalを使わない場合の書き方】
@@ -312,7 +318,7 @@ public class MemoService {
      * 5. ログ出力
      *
      * @param dto 更新するメモのDTO
-     * @throws IllegalArgumentException メモが見つからない場合
+     * @throws MemoNotFoundException メモが見つからない場合
      */
     @Transactional
     public void update(MemoDto dto) {
@@ -326,7 +332,7 @@ public class MemoService {
          * - 存在しないIDに対する更新を防ぐ
          * - わかりやすいエラーメッセージを返す
          *
-         * findById() で見つからない場合は IllegalArgumentException がスローされる
+         * findById() で見つからない場合は MemoNotFoundException がスローされる
          */
         findById(dto.getId());  // 存在チェック（見つからなければ例外）
 
@@ -352,7 +358,7 @@ public class MemoService {
          */
         if (updatedCount == 0) {
             log.warn("更新対象のメモが見つかりませんでした: id={}", dto.getId());
-            throw new IllegalArgumentException("メモが見つかりません: id=" + dto.getId());
+            throw new MemoNotFoundException("メモが見つかりません: id=" + dto.getId());
         }
 
         log.info("メモを更新しました: id={}, title={}", memo.getId(), memo.getTitle());
@@ -368,7 +374,7 @@ public class MemoService {
      * 4. ログ出力
      *
      * @param id 削除するメモのID
-     * @throws IllegalArgumentException メモが見つからない場合
+     * @throws MemoNotFoundException メモが見つからない場合
      */
     @Transactional
     public void delete(Long id) {
@@ -389,7 +395,7 @@ public class MemoService {
          */
         if (deletedCount == 0) {
             log.warn("削除対象のメモが見つかりませんでした: id={}", id);
-            throw new IllegalArgumentException("メモが見つかりません: id=" + id);
+            throw new MemoNotFoundException("メモが見つかりません: id=" + id);
         }
 
         log.info("メモを削除しました: id={}, title={}", id, dto.getTitle());
