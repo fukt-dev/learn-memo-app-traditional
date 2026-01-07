@@ -417,7 +417,7 @@ public interface MemoMapper {
  * 【4. application.ymlの設定との関連】
  *
  * mybatis:
- *   mapper-locations: classpath:mybatis/mapper/**/*.xml
+ *   mapper-locations: classpath:mybatis/mapper/**.xml
  *   → MemoMapper.xmlの場所を指定
  *
  *   type-aliases-package: com.example.memoapp.entity

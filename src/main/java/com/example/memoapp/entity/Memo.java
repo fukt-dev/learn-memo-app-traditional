@@ -246,18 +246,16 @@ public class Memo {
      *
      * 例:
      *
-     * /**
-     *  * メモが最近作成されたか判定する
-     *  * @return 作成から24時間以内の場合 true
-     *  */
+     * メモが最近作成されたか判定する
+     * @return 作成から24時間以内の場合 true
+     *
      * public boolean isNew() {
      *     return createdAt.isAfter(LocalDateTime.now().minusDays(1));
      * }
      *
-     * /**
-     *  * メモが編集されているか判定する
-     *  * @return 作成日時と更新日時が異なる場合 true
-     *  */
+     * メモが編集されているか判定する
+     * @return 作成日時と更新日時が異なる場合 true
+     *
      * public boolean isEdited() {
      *     return !createdAt.equals(updatedAt);
      * }

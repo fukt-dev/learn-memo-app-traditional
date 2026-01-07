@@ -244,7 +244,10 @@ public class MemoDto {
      */
     public Memo toEntity() {
         Memo memo = new Memo();
-        memo.setId(this.id);
+        // 更新時のみidを設定（新規作成時はnullなので設定しない）
+        if (this.id != null) {
+            memo.setId(this.id);
+        }
         memo.setTitle(this.title);
         memo.setContent(this.content);
         // createdAt, updatedAt は設定しない（DBが自動設定）

@@ -21,24 +21,63 @@
 
 **とにかく最短で動かしてみたい方へ：**
 
-```bash
-# 1. PostgreSQLを起動（Docker必須）
-docker compose up -d
-# または旧形式: docker-compose up -d
+### 🐳 Docker方式（推奨）
 
-# 2. アプリケーションを起動（Java 17 + Maven必須）
+**必要なもの：** Docker Desktop のみ
+
+```bash
+# 1. 全てのサービスを起動（PostgreSQL + アプリケーション）
+docker compose up --build
+
+# 2. ブラウザでアクセス
+# http://localhost:8080/memos
+```
+
+**バックグラウンド起動する場合：**
+```bash
+docker compose up -d --build
+```
+
+**停止する場合：**
+```bash
+docker compose down
+```
+
+**ログ確認：**
+```bash
+# 全体のログ
+docker compose logs -f
+
+# アプリケーションのログのみ
+docker compose logs -f app
+```
+
+---
+
+### 💻 ローカル開発方式（従来型）
+
+**必要なもの：** Java 17、Maven、Docker Desktop
+
+```bash
+# 1. PostgreSQLのみ起動
+docker compose up -d postgres
+
+# 2. アプリケーションをローカルで起動
 mvn spring-boot:run
 
 # 3. ブラウザでアクセス
 # http://localhost:8080/memos
 ```
 
+---
+
 **起動成功の確認：**
-- コンソールに `Started MemoAppApplication in X.XXX seconds` と表示される
+- Docker方式: `docker compose logs app` で `Started MemoAppApplication` と表示される
+- ローカル方式: コンソールに `Started MemoAppApplication in X.XXX seconds` と表示される
 - ブラウザで http://localhost:8080/memos にアクセスするとメモ一覧画面が表示される
 
 **トラブル時は：**
-- [前提条件](#前提条件) を確認（JDK 17、Maven、Docker が必要です）
+- [前提条件](#前提条件) を確認
 - [トラブルシューティング](#トラブルシューティング) を参照
 
 ---
@@ -118,9 +157,16 @@ mvn spring-boot:run
 
 ## 前提条件
 
-開発環境に以下がインストールされている必要があります。
+### 🐳 Docker方式（推奨）の場合
 
-### 必須
+- **Docker Desktop**
+  - インストール確認: `docker --version` および `docker compose version`
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+  - **これだけで動きます！** Java、Mavenのインストールは不要です
+
+### 💻 ローカル開発方式の場合
+
+以下全てが必要です：
 
 - **JDK 17以上**
   - インストール確認: `java -version`
@@ -130,9 +176,10 @@ mvn spring-boot:run
   - インストール確認: `mvn -version`
   - [Apache Maven](https://maven.apache.org/download.cgi)
 
-- **Docker & Docker Compose**
-  - インストール確認: `docker --version` および `docker-compose --version`
+- **Docker Desktop**
+  - インストール確認: `docker --version`
   - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+  - （PostgreSQL用）
 
 ### 推奨
 
@@ -154,25 +201,55 @@ git clone https://github.com/fukt-dev/learn-memo-app-traditional.git
 cd learn-memo-app-traditional
 ```
 
-### 2. PostgreSQLの起動
+### 2. 起動方法の選択
 
-Docker Composeを使ってPostgreSQLを起動します。
+#### 🐳 方法A: Docker方式（推奨）
+
+**全てをDockerで実行**
 
 ```bash
-# PostgreSQLコンテナを起動
-docker compose up -d
-# または旧形式: docker-compose up -d
+# 全サービスを起動（ビルド含む）
+docker compose up --build
+
+# バックグラウンド起動の場合
+docker compose up -d --build
+```
+
+**初回起動時の流れ：**
+1. Dockerfileに基づいてJavaアプリケーションのイメージをビルド（5-10分）
+2. PostgreSQLコンテナを起動
+3. アプリケーションコンテナを起動
+4. データベースマイグレーションを自動実行
+
+**起動確認:**
+```bash
+# コンテナの状態確認
+docker compose ps
+
+# ログ確認
+docker compose logs -f app
+```
+
+ブラウザで http://localhost:8080/memos にアクセス
+
+---
+
+#### 💻 方法B: ローカル開発方式
+
+**PostgreSQLのみDockerで実行、アプリケーションはローカルで実行**
+
+##### B-1. PostgreSQLの起動
+
+```bash
+# PostgreSQLコンテナのみ起動
+docker compose up -d postgres
 
 # 起動確認
-docker compose ps
-# または旧形式: docker-compose ps
+docker compose ps postgres
 
 # ログ確認
 docker compose logs -f postgres
-# または旧形式: docker-compose logs -f postgres
 ```
-
-> **Note**: Docker Compose V2では `docker compose`（スペース）が推奨されますが、V1の `docker-compose`（ハイフン）も互換性のために動作します。
 
 **起動成功の確認:**
 ```
@@ -180,25 +257,7 @@ NAME                IMAGE                COMMAND                  SERVICE    CRE
 memoapp-postgres    postgres:16-alpine   "docker-entrypoint.s…"   postgres   5 seconds ago   Up 4 seconds   0.0.0.0:5432->5432/tcp
 ```
 
-### 3. データベースの確認（オプション）
-
-PostgreSQLに接続してデータベースが作成されていることを確認できます。
-
-```bash
-# PostgreSQLコンテナに接続
-docker compose exec postgres psql -U memoapp_user -d memoapp
-# または旧形式: docker-compose exec postgres psql -U memoapp_user -d memoapp
-
-# テーブル一覧を表示
-\dt
-
-# 接続を終了
-\q
-```
-
-### 4. 依存関係のダウンロード
-
-Mavenで依存ライブラリをダウンロードします。
+##### B-2. 依存関係のダウンロード
 
 ```bash
 mvn clean install
@@ -206,22 +265,19 @@ mvn clean install
 
 初回実行時は、必要なライブラリがダウンロードされるため時間がかかります。
 
-## アプリケーションの起動
+##### B-3. アプリケーションの起動
 
-### 方法1: Mavenコマンドで起動
-
+**オプション1: Mavenコマンドで起動**
 ```bash
 mvn spring-boot:run
 ```
 
-### 方法2: IDEから起動
-
+**オプション2: IDEから起動**
 1. `src/main/java/com/example/memoapp/MemoAppApplication.java` を開く
 2. `main()` メソッドの左側の緑色の▶ボタンをクリック
 3. "Run 'MemoAppApplication'" を選択
 
-### 方法3: JARファイルを作成して起動
-
+**オプション3: JARファイルを作成して起動**
 ```bash
 # JARファイルをビルド
 mvn clean package
@@ -230,18 +286,30 @@ mvn clean package
 java -jar target/memo-app-1.0.0-SNAPSHOT.jar
 ```
 
-### 起動確認
-
-起動が成功すると、以下のようなログが表示されます:
-
+**起動確認:**
 ```
 Started MemoAppApplication in 3.456 seconds (JVM running for 4.123)
 Tomcat started on port(s): 8080 (http) with context path ''
 ```
 
-ブラウザで以下のURLにアクセスできます:
+ブラウザで http://localhost:8080/memos にアクセス
 
-- **アプリケーション**: http://localhost:8080/memos
+---
+
+### 3. データベースの確認（オプション）
+
+PostgreSQLに接続してデータベースを確認できます。
+
+```bash
+# PostgreSQLコンテナに接続
+docker compose exec postgres psql -U memoapp_user -d memoapp
+
+# テーブル一覧を表示
+\dt
+
+# 接続を終了
+\q
+```
 
 ## 使い方
 
@@ -421,6 +489,92 @@ MyBatisが実行するSQLは自動的にコンソールに出力されます:
 
 ## トラブルシューティング
 
+### 🐳 Docker方式のトラブルシューティング
+
+#### 1. コンテナが起動しない
+
+**状態確認:**
+```bash
+docker compose ps
+docker compose logs
+```
+
+**よくある原因と対処法:**
+
+**a) ポート競合**
+```bash
+# 既に8080番ポートが使用されている
+# エラー例: "Bind for 0.0.0.0:8080 failed: port is already allocated"
+
+# 解決策: docker-compose.ymlでポート変更
+# ports:
+#   - "8081:8080"  # ホスト側を8081に変更
+```
+
+**b) PostgreSQLの起動を待たずにアプリが起動**
+```bash
+# depends_on の healthcheck が機能していない場合
+# 解決策: 一度停止して再起動
+docker compose down
+docker compose up --build
+```
+
+**c) ビルドエラー**
+```bash
+# Mavenのビルドが失敗
+# ログ確認
+docker compose logs app
+
+# キャッシュをクリアして再ビルド
+docker compose build --no-cache app
+docker compose up app
+```
+
+#### 2. データベース接続エラー
+
+**エラー例:**
+```
+Connection to postgres:5432 refused
+```
+
+**解決策:**
+```bash
+# PostgreSQLの状態確認
+docker compose ps postgres
+
+# healthyになるまで待つ
+docker compose logs -f postgres
+
+# データベースをリセット
+docker compose down -v
+docker compose up --build
+```
+
+#### 3. イメージのリビルドが反映されない
+
+**ソースコード変更後:**
+```bash
+# 強制的に再ビルド
+docker compose up --build --force-recreate
+```
+
+#### 4. 全てをリセットしたい
+
+```bash
+# コンテナ、ネットワーク、ボリューム全て削除
+docker compose down -v
+
+# イメージも削除
+docker compose down -v --rmi all
+
+# 再起動
+docker compose up --build
+```
+
+---
+
+### 💻 ローカル開発方式のトラブルシューティング
+
 ### アプリケーションが起動しない
 
 #### 1. ポートが既に使用されている
@@ -440,13 +594,13 @@ server:
 
 方法2: 8080番ポートを使用しているプロセスを終了
 ```bash
-# プロセスを確認
-lsof -i :8080  # Mac/Linux
-netstat -ano | findstr :8080  # Windows
+# Windowsの場合
+netstat -ano | findstr :8080
+taskkill /PID <PID> /F
 
-# プロセスを終了
-kill -9 <PID>  # Mac/Linux
-taskkill /PID <PID> /F  # Windows
+# Mac/Linuxの場合
+lsof -i :8080
+kill -9 <PID>
 ```
 
 #### 2. PostgreSQLに接続できない

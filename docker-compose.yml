@@ -30,7 +30,9 @@ version: '3.8'
 # サービス定義
 # --------------------------------------------
 # サービスとは、起動したいコンテナの設定のこと
-# ここでは「postgres」という名前のサービスを1つ定義します
+# ここでは2つのサービスを定義します：
+# 1. postgres - PostgreSQLデータベース
+# 2. app - Spring Bootアプリケーション
 services:
 
   # PostgreSQLデータベースのサービス
@@ -120,7 +122,8 @@ services:
       # 実行するコマンド
       # pg_isready = PostgreSQLが接続可能かをチェックするコマンド
       # -U memoapp_user = memoapp_user で接続可能かを確認
-      test: ["CMD-SHELL", "pg_isready -U memoapp_user"]
+      # -d memoapp = memoapp データベースに接続可能かを確認
+      test: ["CMD-SHELL", "pg_isready -U memoapp_user -d memoapp"]
 
       # チェック間隔（10秒ごと）
       interval: 10s
@@ -144,6 +147,97 @@ services:
     # - always: 常に再起動（docker-compose down でも再起動する）
     # - on-failure: エラーで停止した場合のみ再起動
     restart: unless-stopped
+
+  # --------------------------------------------
+  # Spring Bootアプリケーションのサービス
+  # --------------------------------------------
+  app:
+    # Dockerfileからイメージをビルド
+    # buildセクションで、ビルド時の設定を指定します
+    build:
+      # ビルドコンテキスト（Dockerfileの場所）
+      # . = カレントディレクトリ（docker-compose.ymlと同じ場所）
+      context: .
+
+      # 使用するDockerfile
+      # 複数のDockerfileがある場合に指定できます
+      dockerfile: Dockerfile
+
+    # コンテナ名
+    # わかりやすい名前をつけることで、ログ確認などが容易になります
+    container_name: memoapp-spring
+
+    # ポートのマッピング
+    # "ホスト側のポート:コンテナ側のポート"
+    # 8080:8080 = ホストの8080番ポートをコンテナの8080番ポートに接続
+    #
+    # これにより、http://localhost:8080 でアプリケーションにアクセスできます
+    ports:
+      - "8080:8080"
+
+    # 環境変数の設定
+    # アプリケーションの動作を制御する設定値
+    # これらはapplication.ymlの設定を上書きします
+    environment:
+      # データベース接続URL
+      # postgres:5432 の「postgres」はサービス名
+      # Docker Composeは自動的にサービス名をホスト名として解決します
+      # つまり、appコンテナから「postgres」というホスト名でPostgreSQLに接続できます
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/memoapp
+
+      # データベースのユーザー名
+      # PostgreSQLサービスで設定した値と一致させる
+      SPRING_DATASOURCE_USERNAME: memoapp_user
+
+      # データベースのパスワード
+      # PostgreSQLサービスで設定した値と一致させる
+      SPRING_DATASOURCE_PASSWORD: memoapp_pass
+
+      # Flyway設定（データベースマイグレーション）
+      # application.ymlの設定を上書き
+      SPRING_FLYWAY_ENABLED: "true"
+
+      # JPA/Hibernate設定
+      # validate = 起動時にスキーマを検証（変更は加えない）
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+
+      # SQLログの出力
+      # true = 実行されるSQLをコンソールに表示（開発時に便利）
+      SPRING_JPA_SHOW_SQL: "true"
+
+      # 開発ツールの有効化（オプション）
+      # 自動リロードなどの開発支援機能
+      # SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+
+    # 依存関係の設定
+    # このサービスが起動する前に、指定したサービスが起動している必要があります
+    depends_on:
+      postgres:
+        # condition: service_healthy を指定すると、
+        # PostgreSQLのヘルスチェックが成功してから起動します
+        # これにより、データベースが完全に起動してからアプリケーションが起動します
+        condition: service_healthy
+
+    # 再起動ポリシー
+    # unless-stopped = 手動で停止するまで、常に再起動を試みる
+    # データベース接続エラーなどで停止した場合も自動的に再起動します
+    restart: unless-stopped
+
+    # ヘルスチェック（オプション）
+    # アプリケーションが正常に動作しているかを定期的に確認
+    # Spring Boot Actuatorを使用する場合
+    # healthcheck:
+    #   test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health"]
+    #   interval: 30s
+    #   timeout: 3s
+    #   retries: 3
+    #   start_period: 40s
+
+    # ボリュームマッピング（開発時のホットリロード用、オプション）
+    # ソースコードを変更したら自動的に反映される
+    # 注: Spring Boot DevToolsが必要
+    # volumes:
+    #   - ./src:/app/src
 
 # --------------------------------------------
 # ボリューム定義

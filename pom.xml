@@ -151,20 +151,13 @@
             - データベースのバージョン管理
             - テーブル作成・変更のSQL（マイグレーションファイル）を自動実行
             - チーム開発でのDB構造の同期
+
+            注: Spring Boot 3.2.1では、flyway-coreだけでPostgreSQLをサポートしています
+            flyway-database-postgresqlは不要です（バージョン管理の複雑さを避けるため削除）
         -->
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-        </dependency>
-
-        <!--
-            Flyway PostgreSQL Support
-            【何ができる】
-            - FlywayでPostgreSQLを使うための拡張機能
-        -->
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
 
         <!-- ========================================
