@@ -20,8 +20,10 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  *    - コードレビューやデバッグがしやすい
  *
  * 2. HTTPステータスを適切に設定できる
- *    - @ResponseStatus(HttpStatus.NOT_FOUND) により404を返せる
- *    - IllegalArgumentExceptionは400（Bad Request）になってしまう
+ *    - 専用の例外なら「404を返す」という意図を型で表現できる
+ *    - IllegalArgumentException のような汎用例外は、何もしなければ
+ *      「未処理の例外」として500（Internal Server Error）になる
+ *      （400にしたければ例外ハンドラでステータスを明示する必要がある）
  *
  * 3. 例外ハンドリングを分けられる
  *    - GlobalExceptionHandlerで専用のハンドラを書ける
@@ -42,15 +44,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  *
  * HttpStatus.NOT_FOUND = 404
  *
- * 【動作】
- * 1. MemoServiceでこの例外がスローされる
- * 2. Springが自動的に404レスポンスを返す
- * 3. GlobalExceptionHandlerでカスタムエラー画面を表示できる
+ * 【効くのは「未ハンドルのまま届いた」場合だけ（重要な落とし穴）】
+ * このアノテーションが効くのは、例外がどの @ExceptionHandler にも
+ * 捕捉されずに Spring のデフォルト処理まで届いた場合。
+ * その場合は Whitelabel Error Page が 404 で表示される。
  *
- * 【例】
- * GET /memos/99999 (存在しないID)
- * → MemoService.findById() がこの例外をスロー
- * → HTTPステータス 404 Not Found を返す
+ * このアプリのように GlobalExceptionHandler が捕捉してビューを返す構成では、
+ * クラス側の指定は適用されず、ハンドラメソッド側の
+ * @ResponseStatus(HttpStatus.NOT_FOUND) が404を決めている。
+ *
+ * ここに残しているのは、
+ * - 「この例外は404を意図している」という仕様の宣言になる
+ * - 将来ハンドラを外しても404が維持される保険になる
+ * ため
  */
 @ResponseStatus(HttpStatus.NOT_FOUND)
 public class MemoNotFoundException extends RuntimeException {
@@ -130,8 +136,9 @@ public class MemoNotFoundException extends RuntimeException {
  *         .orElseThrow(() -> new MemoNotFoundException("メモが見つかりません: id=" + id));
  *
  * 【違い】
- * 修正前: HTTPステータス 400（Bad Request）
- * 修正後: HTTPステータス 404（Not Found） ← より適切
+ * 修正前: IllegalArgumentException → 例外の意図がコードから読み取れない
+ * 修正後: MemoNotFoundException → 「リソースが無い = 404」の意図が型で伝わり、
+ *         専用の例外ハンドラで404を返せる
  */
 
 /*
@@ -142,6 +149,7 @@ public class MemoNotFoundException extends RuntimeException {
  * GlobalExceptionHandlerに専用ハンドラを追加:
  *
  * @ExceptionHandler(MemoNotFoundException.class)
+ * @ResponseStatus(HttpStatus.NOT_FOUND)  // ← ハンドラ側にも必要（クラス側だけでは200になる）
  * public String handleMemoNotFoundException(
  *         MemoNotFoundException ex,
  *         Model model

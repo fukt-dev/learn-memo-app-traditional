@@ -1,9 +1,12 @@
 package com.example.memoapp.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * ============================================
@@ -78,23 +81,25 @@ public class GlobalExceptionHandler {
     /**
      * MemoNotFoundException のハンドラ
      *
-     * 【MemoNotFoundExceptionとは】
-     * メモが見つからない場合にスローされるカスタム例外
-     * @ResponseStatus(HttpStatus.NOT_FOUND) により404を返す
-     *
      * 【このハンドラの役割】
-     * MemoNotFoundExceptionをキャッチして、
-     * わかりやすいエラー画面を表示する
+     * メモが見つからない場合にカスタムエラー画面を表示し、
+     * HTTPステータス 404（Not Found）を返す
      *
-     * 【処理の流れ】
-     * 1. MemoService.findById(999) を呼ぶ（存在しないID）
-     * 2. MemoNotFoundException がスローされる
-     * 3. このメソッドが自動的に呼ばれる
-     * 4. WARNレベルでログ出力（ERRORより低い）
-     * 5. エラー画面が表示される
-     * 6. HTTPステータス 404 が返される
+     * 【落とし穴: 例外クラス側の @ResponseStatus は「ここでは」効かない】
+     * MemoNotFoundException クラスには @ResponseStatus(HttpStatus.NOT_FOUND) が
+     * 付いているが、あれが効くのは「どの @ExceptionHandler にも捕捉されずに」
+     * Spring のデフォルト処理（ResponseStatusExceptionResolver）まで届いた場合だけ。
      *
-     * 【IllegalArgumentExceptionとの違い】
+     * このハンドラのように @ExceptionHandler が例外を捕捉してビューを返すと、
+     * Spring から見れば「正常にレスポンスを生成できた」ことになり、
+     * 何も指定しなければ HTTPステータスは 200（OK）になってしまう。
+     *
+     * → エラー画面を見せているのにステータスは 200、という
+     *   「人間には分かるが機械（クローラや監視ツール）には分からない」状態になる
+     *
+     * そのため、ハンドラメソッド側にも @ResponseStatus を明示的に付けている
+     *
+     * 【IllegalArgumentExceptionハンドラとの違い】
      * - IllegalArgumentException: ERROR レベル、400ステータス
      * - MemoNotFoundException: WARN レベル、404ステータス
      *
@@ -107,6 +112,7 @@ public class GlobalExceptionHandler {
      * @return ビュー名（templates/error/error.html）
      */
     @ExceptionHandler(MemoNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
     public String handleMemoNotFoundException(
             MemoNotFoundException ex,
             /*
@@ -144,8 +150,9 @@ public class GlobalExceptionHandler {
          * エラー画面のビュー名を返す
          * templates/error/error.html を表示
          *
-         * HTTPステータスは @ResponseStatus(HttpStatus.NOT_FOUND) により
-         * 自動的に404になる
+         * HTTPステータスは、このメソッドに付けた
+         * @ResponseStatus(HttpStatus.NOT_FOUND) により404になる
+         * （例外クラス側のアノテーションだけでは 200 が返る。上記の落とし穴を参照）
          */
         return "error/error";
     }
@@ -157,21 +164,22 @@ public class GlobalExceptionHandler {
      * 不正な引数が渡されたときに発生する例外
      *
      * 【このアプリでの使用例】
-     * MemoService.findById() で、存在しないIDが指定された場合
-     * throw new IllegalArgumentException("メモが見つかりません: id=" + id);
+     * MemoService.findAllWithPaging() で、不正なページ番号が指定された場合
+     * throw new IllegalArgumentException("ページ番号は1以上である必要があります: " + pageNumber);
      *
-     * 【処理の流れ】
-     * 1. MemoService.findById(999) を呼ぶ
-     * 2. IDが見つからない
-     * 3. IllegalArgumentException がスローされる
-     * 4. このメソッドが自動的に呼ばれる
-     * 5. エラー画面が表示される
+     * 【なぜ @ResponseStatus(HttpStatus.BAD_REQUEST) を付けているのか】
+     * IllegalArgumentException 自体には HTTPステータスの情報はない。
+     * ハンドラを書かなければ未処理の例外として 500（Internal Server Error）になり、
+     * ハンドラを書いてもステータスを指定しなければ 200（OK）になってしまう。
+     * 「クライアントの入力が不正」という意味の 400 を返すには、
+     * このようにハンドラ側で明示する必要がある
      *
      * @param ex 発生した例外オブジェクト
      * @param model Modelオブジェクト（エラー画面に渡すデータ）
      * @return ビュー名（templates/error/error.html）
      */
     @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     /*
      * @ExceptionHandler
      *
@@ -222,6 +230,42 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 存在しないURLへのアクセスのハンドラ（404）
+     *
+     * 【NoResourceFoundExceptionとは】
+     * Spring Boot 3.2（Spring Framework 6.1）以降で、
+     * どのControllerにもマッピングされず、静的リソースとしても見つからない
+     * URLにアクセスされたときにスローされる例外
+     * 例: GET /memoss（タイプミス）、GET /favicon.ico（未配置）
+     *
+     * 【なぜ専用ハンドラが必要か】
+     * このクラスには Exception を捕捉するフォールバックハンドラがあるため、
+     * 専用ハンドラがないと NoResourceFoundException もそこに吸い込まれ、
+     * 「ただのURLタイプミス」が「システムエラー画面 + ERRORログ」になってしまう。
+     *
+     * - ユーザーには「ページが見つからない」と伝えるのが正しい（404）
+     * - ログもERROR（システム異常）ではなくWARN（注意）が適切
+     *   （favicon.ico のような機械的なアクセスで ERROR が積もると、
+     *    本当の障害ログが埋もれてしまう）
+     *
+     * @param ex 発生した例外オブジェクト
+     * @param model Modelオブジェクト
+     * @return ビュー名（templates/error/error.html）
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleNoResourceFoundException(NoResourceFoundException ex, Model model) {
+        /*
+         * getResourcePath() で「どのURLが見つからなかったか」を記録できる
+         */
+        log.warn("存在しないURLへのアクセス: /{}", ex.getResourcePath());
+
+        model.addAttribute("errorMessage", "お探しのページが見つかりませんでした");
+
+        return "error/error";
+    }
+
+    /**
      * すべての例外のハンドラ（フォールバック）
      *
      * 【役割】
@@ -234,14 +278,22 @@ public class GlobalExceptionHandler {
      * など
      *
      * 【処理の優先順位】
-     * 1. 具体的な例外ハンドラ（IllegalArgumentException など）
+     * Springは「発生した例外に最も近い型のハンドラ」を選ぶ
+     * 1. 具体的な例外ハンドラ（MemoNotFoundException など）
      * 2. 汎用的な例外ハンドラ（Exception）← このメソッド
+     *
+     * 【なぜ 500 を明示するのか】
+     * ここに来るのは「予期しないエラー」= サーバー側の異常なので、
+     * 500（Internal Server Error）が適切。
+     * @ResponseStatus を付けないと、エラー画面を表示しているのに
+     * ステータスは 200（OK）が返ってしまう
      *
      * @param ex 発生した例外オブジェクト
      * @param model Modelオブジェクト
      * @return ビュー名（templates/error/error.html）
      */
     @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public String handleException(Exception ex, Model model) {
         /*
          * エラーログを出力
@@ -298,17 +350,16 @@ public class GlobalExceptionHandler {
      */
 
     /**
-     * 404エラー（ページが見つからない）のハンドラ（例）
+     * 404エラーページをカスタマイズする別の方法（参考）
      *
-     * 【注意】
-     * 404エラーは例外ではなく、HTTPステータスとして返される
-     * そのため、@ExceptionHandler では捕捉できない
-     *
-     * 404エラーページをカスタマイズする方法:
+     * このクラスでは NoResourceFoundException のハンドラで404画面を出しているが、
+     * Spring Boot にはテンプレートの配置だけで実現する仕組みもある:
      * 1. src/main/resources/templates/error/404.html を作成
-     * 2. Spring Bootが自動的にこのテンプレートを使用する
+     * 2. ハンドルされなかった404エラー発生時、Spring Bootが自動的にこのテンプレートを使用する
      *
-     * 同様に、500.html, 403.html なども作成可能
+     * 同様に、500.html, 403.html なども作成可能。
+     * 「ステータスコードごとに画面を変えるだけ」ならこちらの方がシンプル。
+     * ログ出力やModelへの値設定など「処理」も挟みたい場合は @ExceptionHandler を使う
      */
 }
 
