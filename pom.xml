@@ -128,18 +128,14 @@
         </dependency>
 
         <!--
-            H2 Database (開発・テスト用)
-            【何ができる】
-            - インメモリデータベース（メモリ上で動くDB）
-            - PostgreSQLがない環境でもテストできる
-            - 開発時の動作確認に便利
-            scope=runtimeは、実行時のみ使用（コンパイル時は不要）
+            【H2（インメモリDB）を使っていない理由】
+            「PostgreSQLなしでテストできる」用途でH2を入れる構成もあるが、
+            このアプリのマイグレーション（V1__Create_memos_table.sql）は
+            BIGSERIAL・トリガー・GINインデックスなどPostgreSQL専用構文を使っており、
+            H2では実行できない。
+            使えない依存を残すと「テストはH2でできる」という誤解を生むため、
+            あえて入れていない（DBを使うテストはPostgreSQL実体で行う）
         -->
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
-        </dependency>
 
         <!-- ========================================
              Flyway (データベースマイグレーション)

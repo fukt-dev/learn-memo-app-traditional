@@ -22,9 +22,10 @@
 #    (psqlはPostgreSQLのコマンドラインツール)
 #
 
-# Docker Composeのバージョン
-# 3.8は比較的新しく、安定したバージョン
-version: '3.8'
+# 【version: 行を書いていない理由】
+# 昔のdocker-composeでは「version: '3.8'」のような宣言が必須だったが、
+# 現在のDocker Compose（V2）ではこの行は廃止（obsolete）となり、
+# 書くと起動時に警告が出る。現在はファイル全体が自動的に最新仕様で解釈される
 
 # --------------------------------------------
 # サービス定義
@@ -197,13 +198,11 @@ services:
       # application.ymlの設定を上書き
       SPRING_FLYWAY_ENABLED: "true"
 
-      # JPA/Hibernate設定
-      # validate = 起動時にスキーマを検証（変更は加えない）
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
-
-      # SQLログの出力
-      # true = 実行されるSQLをコンソールに表示（開発時に便利）
-      SPRING_JPA_SHOW_SQL: "true"
+      # 【JPA系の環境変数（SPRING_JPA_...）を設定していない理由】
+      # このアプリのDBアクセスはMyBatisであり、JPA/Hibernateは使っていない。
+      # SPRING_JPA_HIBERNATE_DDL_AUTO などを設定しても単に無視されるだけでなく、
+      # 「このアプリはJPAで動いている」という誤解のもとになるため置かない
+      # （JPA版の実装は learn-memo-app-modern を参照）
 
       # 開発ツールの有効化（オプション）
       # 自動リロードなどの開発支援機能
