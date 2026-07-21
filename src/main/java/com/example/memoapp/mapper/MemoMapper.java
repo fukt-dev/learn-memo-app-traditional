@@ -279,6 +279,10 @@ public interface MemoMapper {
     /**
      * ページング付き全件取得
      *
+     * 【現在は未使用（実装演習用）】
+     * このメソッドと count() は、現時点ではどの画面からも使われていない。
+     * 一覧画面へのページング追加演習用の部品（演習手順は MemoService のコメント参照）
+     *
      * 【SQL】
      * SELECT * FROM memos
      * ORDER BY created_at DESC

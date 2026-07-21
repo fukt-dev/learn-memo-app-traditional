@@ -143,6 +143,20 @@ public class MemoService {
      *
      * @return メモのDTOリスト
      */
+    @Transactional(readOnly = true)
+    /*
+     * @Transactional(readOnly = true)
+     *
+     * 「参照だけのメソッド」であることを宣言する
+     *
+     * 【readOnly = true の効果】
+     * - PostgreSQLのトランザクションが READ ONLY モードになり、
+     *   誤ってこの中で更新SQLを実行するとエラーで検出できる
+     * - ドライバやコネクションプールに「読み取り専用」と伝わり、最適化の余地が生まれる
+     * - コードを読む人に「このメソッドはデータを変更しない」と一目で伝わる
+     *
+     * 更新系メソッド（create/update/delete）には通常の @Transactional を付ける
+     */
     public List<MemoDto> findAll() {
         /*
          * ログ出力（DEBUG level）
@@ -198,6 +212,7 @@ public class MemoService {
      * @return メモのDTO
      * @throws MemoNotFoundException メモが見つからない場合
      */
+    @Transactional(readOnly = true)  // 参照のみ（詳細はfindAll()のコメント参照）
     public MemoDto findById(Long id) {
         log.debug("メモを取得します: id={}", id);
 
@@ -412,6 +427,7 @@ public class MemoService {
      * @param keyword 検索キーワード
      * @return 検索結果のDTOリスト
      */
+    @Transactional(readOnly = true)  // 参照のみ（詳細はfindAll()のコメント参照）
     public List<MemoDto> search(String keyword) {
         log.debug("キーワードでメモを検索します: keyword={}", keyword);
 
@@ -439,6 +455,25 @@ public class MemoService {
                 .collect(Collectors.toList());
     }
 
+    /*
+     * ============================================
+     * ここから下は「ページング機能」のためのメソッド群
+     * ============================================
+     *
+     * 【現在は未使用（実装演習用）】
+     * findAllWithPaging / count / getTotalPages は、
+     * 現時点ではどのControllerからも呼ばれていない。
+     * 一覧画面にページングを追加するための「部品」だけを先に用意してある
+     *
+     * 【実装演習: 一覧画面にページングを追加してみよう】
+     * 1. MemoController.list() に @RequestParam(required = false) で page パラメータを追加
+     * 2. findAll() の代わりに findAllWithPaging(page, 10) を呼ぶ
+     * 3. getTotalPages(10) の結果を Model に渡す
+     * 4. list.html に「前へ / 1 2 3 / 次へ」のリンクを追加
+     *    （th:each と @{/memos(page=${i})} を使う）
+     * 5. 検索（keyword）とページングの併用をどう設計するか考えてみる
+     */
+
     /**
      * ページング付き全件取得
      *
@@ -451,6 +486,7 @@ public class MemoService {
      * @param pageSize 1ページあたりの件数
      * @return 指定ページのDTOリスト
      */
+    @Transactional(readOnly = true)  // 参照のみ（詳細はfindAll()のコメント参照）
     public List<MemoDto> findAllWithPaging(int pageNumber, int pageSize) {
         log.debug("ページング付きでメモを取得します: page={}, size={}", pageNumber, pageSize);
 
@@ -496,6 +532,7 @@ public class MemoService {
      *
      * @return メモの総件数
      */
+    @Transactional(readOnly = true)  // 参照のみ（詳細はfindAll()のコメント参照）
     public long count() {
         long count = memoMapper.count();
         log.debug("メモの総件数: {}", count);
@@ -515,6 +552,14 @@ public class MemoService {
      *
      * @param pageSize 1ページあたりの件数
      * @return 総ページ数
+     */
+    @Transactional(readOnly = true)
+    /*
+     * 【落とし穴: 自己呼び出しでは @Transactional が効かない】
+     * このメソッドは内部で this.count() を呼ぶが、同じクラス内の呼び出しは
+     * Springのプロキシ（トランザクション開始を担う仕組み）を経由しないため、
+     * count() 側のアノテーションは効かない。
+     * だから「外から呼ばれる入り口」であるこのメソッド自身にも付けている
      */
     public int getTotalPages(int pageSize) {
         long totalCount = count();
