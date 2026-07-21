@@ -194,16 +194,15 @@ public class MemoController {
         log.debug("メモ一覧画面を表示します。検索キーワード: {}", keyword);
 
         /*
-         * keywordがある場合は検索、ない場合は全件取得
-         * MemoService.search() 内でnullチェックを行っているため、
-         * ここでは単純に呼び出すだけでOK
+         * 一覧取得も検索も search() に委譲する
+         *
+         * search() は「keyword が null や空文字なら全件取得」という
+         * 判断まで含めて面倒を見てくれるため、Controller 側に if/else は不要。
+         * 「キーワードが空なら全件」はビジネスルールなので、
+         * その判断は Service に置き、Controller は受け渡しに徹する
+         * （同じ判断を Controller にも書くと、二重管理になり将来ズレる）
          */
-        List<MemoDto> memos;
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            memos = memoService.search(keyword);
-        } else {
-            memos = memoService.findAll();
-        }
+        List<MemoDto> memos = memoService.search(keyword);
 
         /*
          * Modelにデータを設定
@@ -468,6 +467,20 @@ public class MemoController {
              * フォームのaction URLが正しく生成されない
              */
             memoDto.setId(id);
+
+            /*
+             * 【なぜ日時を取り直すのか】
+             * フォームから送信されるのは title と content だけなので、
+             * この時点の memoDto の日時フィールドは null。
+             * そのまま画面に戻すと「作成日時・更新日時」欄が空になってしまう。
+             * DBから現在の値を取り直し、表示用フィールドだけ補完する
+             * （日時をフォームの hidden で往復させる方法もあるが、
+             *   改ざんできる項目を増やさないため、サーバー側で取り直す方が安全）
+             */
+            MemoDto current = memoService.findById(id);
+            memoDto.setCreatedAtFormatted(current.getCreatedAtFormatted());
+            memoDto.setUpdatedAtFormatted(current.getUpdatedAtFormatted());
+
             return "memos/edit";
         }
 
