@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>MyBatis 2waySQL 完全解説</title>
+<style>
+  :root {
+    --ink: #111827;
+    --sub: #374151;
+    --accent: #4338ca;
+    --trad: #b45309;   /* 従来型 = 琥珀 */
+    --trad-bg: #fffbeb;
+    --modern: #0e7490; /* モダン = シアン */
+    --modern-bg: #ecfeff;
+    --line: #cbd5e1;
+    --paper: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: #e2e8f0; scroll-behavior: smooth; }
+  body {
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.75;
+  }
+  /* ---- 画面表示: 紙面カラム + サイドバー目次(印刷時は通常レイアウトに戻す) ----
+     body を flex にし、左 = 紙面カラム(.paper-area、ここにスクロールバーが付く)、
+     右 = 目次(.toc)。スクロールバーがシートのすぐ横に出て、余白に目次が常駐する */
+  body { display: flex; height: 100vh; overflow: hidden; }
+  .paper-area { flex: 0 1 auto; min-width: 0; overflow: auto; scroll-behavior: smooth; order: 1; }
+  .toc {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 150px;
+    max-width: 260px;
+    align-self: flex-start;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    margin: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .12);
+    font-size: 9pt;
+    line-height: 1.5;
+  }
+  .toc-title { font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .toc a { display: block; color: var(--ink); text-decoration: none; padding: 2px 0; }
+  .toc a:hover { color: var(--accent); background: #eef2ff; }
+  /* 目次カラムの置き場が無い狭い画面では、目次なしの通常レイアウトに戻す */
+  @media (max-width: 1290px) {
+    .toc { display: none; }
+    body { display: block; height: auto; overflow: visible; }
+    .paper-area { overflow: visible; }
+  }
+  @media print {
+    .toc { display: none; }
+    body { display: block; height: auto; overflow: visible; }
+    .paper-area { overflow: visible; }
+  }
+
+  /* ---- A4 横のシート ---- */
+  .sheet {
+    width: 297mm;
+    min-height: 210mm;
+    background: var(--paper);
+    margin: 8mm auto;
+    padding: 14mm 16mm 18mm;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, .25);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-body { flex: 1; }
+  .cols { column-count: 2; column-gap: 12mm; column-rule: 1px solid #eef2f7; }
+  .footer {
+    margin-top: 6mm;
+    padding-top: 2.5mm;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between;
+    font-size: 8pt; color: var(--sub);
+  }
+  /* ---- 見出し ---- */
+  .chapter-tag {
+    display: inline-block;
+    background: var(--accent); color: #fff;
+    font-size: 9pt; font-weight: 700;
+    padding: 1mm 4mm; border-radius: 2mm;
+    margin-bottom: 3mm; letter-spacing: .1em;
+  }
+  h1 { font-size: 19pt; margin-bottom: 2mm; line-height: 1.4; }
+  .goal {
+    background: #eef2ff; border-left: 4px solid var(--accent);
+    padding: 2.5mm 5mm; margin: 3mm 0 5mm;
+    font-size: 10pt; border-radius: 0 1.5mm 1.5mm 0;
+  }
+  .goal b { color: var(--accent); }
+  h2 {
+    font-size: 12pt; color: var(--accent);
+    margin: 4.5mm 0 2mm;
+    padding-bottom: 1mm; border-bottom: 2px solid #e0e7ff;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 10.5pt; color: var(--ink);
+    margin: 3.5mm 0 1.5mm; break-after: avoid;
+  }
+  .sheet-body > .cols > h2:first-child, .sheet-body > h2:first-child { margin-top: 0; }
+  p { margin-bottom: 2.5mm; text-align: justify; }
+  ul, ol { margin: 0 0 2.5mm 5.5mm; }
+  li { margin-bottom: 1mm; }
+  b { font-weight: 700; }
+  /* ---- 表 ---- */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 8.5pt; margin: 2mm 0 3.5mm;
+    break-inside: avoid; line-height: 1.55;
+  }
+  th, td { border: 1px solid var(--line); padding: 1.4mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 700; }
+  th.nowrap, td.nowrap { white-space: nowrap; }
+  td.trad, th.trad { background: var(--trad-bg); }
+  td.modern, th.modern { background: var(--modern-bg); }
+  /* ---- コード ---- */
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: .92em; background: #f1f5f9;
+    padding: 0 1mm; border-radius: 1mm;
+  }
+  pre {
+    background: #0f172a; color: #e2e8f0;
+    font-family: Consolas, monospace; font-size: 8.5pt;
+    line-height: 1.6; padding: 3mm 4mm;
+    border-radius: 2mm; margin: 2mm 0 3.5mm;
+    white-space: pre-wrap; word-break: break-all;
+    break-inside: avoid;
+  }
+  pre .cm { color: #94a3b8; }
+  pre .lbl { color: #7dd3fc; }
+  /* ---- 図(フロー) ---- */
+  .flow {
+    background: #f8fafc; border: 1px solid var(--line);
+    border-radius: 2mm; padding: 3mm 4mm;
+    font-family: Consolas, monospace; font-size: 8.5pt;
+    line-height: 1.8; white-space: pre;
+    margin: 2mm 0 3.5mm; break-inside: avoid;
+    overflow-x: auto;
+  }
+  /* ---- バッジ ---- */
+  .badge { display: inline-block; font-size: 8pt; font-weight: 700; padding: .2mm 2.2mm; border-radius: 1mm; margin-right: 1mm; }
+  .badge.t { background: var(--trad-bg); color: var(--trad); border: 1px solid var(--trad); }
+  .badge.m { background: var(--modern-bg); color: var(--modern); border: 1px solid var(--modern); }
+  .note {
+    background: #fef2f2; border-left: 4px solid #dc2626;
+    padding: 2mm 4mm; margin: 2mm 0 3mm;
+    font-size: 9pt; border-radius: 0 1.5mm 1.5mm 0;
+    break-inside: avoid;
+  }
+  /* ---- 表紙 ---- */
+  .cover { justify-content: center; text-align: center; }
+  .cover .sheet-body { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .cover h1 { font-size: 30pt; color: var(--accent); margin: 4mm 0 2mm; }
+  .cover .subtitle { font-size: 13pt; color: var(--sub); margin-bottom: 10mm; }
+  .cover table { width: 200mm; font-size: 10pt; text-align: left; }
+  .cover .badge-t { display: inline-block; background: var(--trad-bg); border: 2px solid var(--trad); color: var(--trad); padding: 3mm 8mm; border-radius: 2.5mm; font-size: 12pt; font-weight: 700; margin: 6mm 0 10mm; }
+  /* ---- 印刷 ---- */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    html { background: none; }
+    .sheet { margin: 0; box-shadow: none; page-break-after: always; width: 297mm; min-height: 209mm; }
+    .sheet:last-child { page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="toc-title">目次</div>
+  <a href="#">表紙</a>
+  <a href="#ch1">第 1 章 2waySQLとは(目次)</a>
+  <a href="#ch2">第 2 章 なぜ2waySQLが重要なのか</a>
+  <a href="#ch3">第 3 章 MyBatisの基本構成</a>
+  <a href="#ch4">第 4 章 基本的なSQL記述</a>
+  <a href="#ch5">第 5 章 動的SQL</a>
+  <a href="#ch6">第 6 章 実践例集</a>
+  <a href="#ch7">第 7 章 テスト方法</a>
+  <a href="#ch8">第 8 章 パフォーマンスチューニング</a>
+  <a href="#ch9">第 9 章 トラブルシューティング</a>
+  <a href="#ch10">第 10 章 ベストプラクティス</a>
+  <a href="#appendix">付録 設定チートシート・参考リンク</a>
+</nav>
+
+<div class="paper-area">
+
+<!-- ============ 表紙 ============ -->
+<section class="sheet cover">
+  <div class="sheet-body">
+    <div class="chapter-tag">learn-memo-app-traditional</div>
+    <h1>MyBatis 2waySQL<br>完全解説</h1>
+    <div class="subtitle">SQL を自分で書きつつ「動的 SQL」と「単体テスト可能な SQL」を両立させる、<br>日本の業務システムで広く使われる手法</div>
+    <div class="badge-t">MyBatis(2waySQL)/ PostgreSQL</div>
+    <table>
+      <tr><th style="width:34mm">位置づけ</th><td>従来型メモ帳アプリのデータアクセス層(<code>MemoMapper.xml</code>)で使われている 2waySQL を、基礎から実践例まで解説します</td></tr>
+      <tr><th>対象読者</th><td>SQL を「見たことがある」程度の初学者。<code>#{}</code> と動的 SQL タグの読み書きができるようになることがゴール</td></tr>
+      <tr><th>実装ファイル</th><td><code>src/main/java/com/example/memoapp/mapper/MemoMapper.java</code> / <code>src/main/resources/mybatis/mapper/MemoMapper.xml</code></td></tr>
+      <tr><th>関連資料</th><td><code>docs/開発ガイド.md</code> / <code>docs/設計書.md</code></td></tr>
+    </table>
+  </div>
+  <div class="footer"><span>MyBatis 2waySQL 完全解説</span><span>表紙</span></div>
+</section>
+
+<!-- ============ 目次 + 第1章 2waySQLとは ============ -->
+<section class="sheet" id="ch1">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 1 章</div>
+    <h1>2waySQL とは・目次</h1>
+    <div class="cols">
+      <h2>目次</h2>
+      <table>
+        <tr><th style="width:10mm">章</th><th>タイトル</th><th style="width:14mm">ページ</th></tr>
+        <tr><td>1</td><td>2waySQLとは</td><td>1</td></tr>
+        <tr><td>2</td><td>なぜ2waySQLが重要なのか</td><td>2</td></tr>
+        <tr><td>3</td><td>MyBatisの基本構成</td><td>3</td></tr>
+        <tr><td>4</td><td>基本的なSQL記述</td><td>5</td></tr>
+        <tr><td>5</td><td>動的SQL</td><td>7</td></tr>
+        <tr><td>6</td><td>実践例集</td><td>9</td></tr>
+        <tr><td>7</td><td>テスト方法</td><td>11</td></tr>
+        <tr><td>8</td><td>パフォーマンスチューニング</td><td>12</td></tr>
+        <tr><td>9</td><td>トラブルシューティング</td><td>13</td></tr>
+        <tr><td>10</td><td>ベストプラクティス</td><td>14</td></tr>
+        <tr><td>付録</td><td>設定チートシート / 参考リンク</td><td>15</td></tr>
+      </table>
+
+      <h2>1.1 定義</h2>
+      <p><b>2waySQL</b>(ツーウェイSQL)とは、以下の2つの使い方ができるSQLのことです:</p>
+      <ol>
+        <li><b>アプリケーション内で動的SQLとして実行</b>
+          <ul>
+            <li>条件によってSQLが変化する</li>
+            <li>MyBatisが実行時に組み立てる</li>
+          </ul>
+        </li>
+        <li><b>SQLツールで直接実行してテスト可能</b>
+          <ul>
+            <li>pgAdminやDBeaverで実行できる</li>
+            <li>SQL単体でのテストが可能</li>
+          </ul>
+        </li>
+      </ol>
+
+      <h2>1.2 具体例</h2>
+      <h3>従来のSQL(文字列連結)</h3>
+      <pre>// ❌ 悪い例: Javaコードで文字列連結
+String sql = "SELECT * FROM memos WHERE 1=1";
+if (keyword != null) {
+    sql += " AND (title LIKE '%" + keyword + "%' OR content LIKE '%" + keyword + "%')";
+}
+sql += " ORDER BY created_at DESC";
+
+// 問題点:
+// - SQLインジェクションの危険性
+// - SQL単体でテストできない
+// - 読みにくい</pre>
+
+      <h3>2waySQL(MyBatis)</h3>
+      <pre>&lt;!-- ✅ 良い例: 2waySQL --&gt;
+&lt;select id="searchByKeyword" resultMap="memoResultMap"&gt;
+    SELECT
+        id,
+        title,
+        content,
+        created_at,
+        updated_at
+    FROM
+        memos
+    &lt;where&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (
+                title LIKE CONCAT('%', #{keyword}, '%')
+                OR content LIKE CONCAT('%', #{keyword}, '%')
+            )
+        &lt;/if&gt;
+    &lt;/where&gt;
+    ORDER BY
+        created_at DESC
+&lt;/select&gt;</pre>
+      <p><b>メリット</b>:</p>
+      <ul>
+        <li>✅ SQLインジェクション対策済み(<code>#{keyword}</code> がプリペアドステートメント)</li>
+        <li>✅ SQLツールで実行可能(<code>&lt;if&gt;</code> タグを削除すれば普通のSQL)</li>
+        <li>✅ 読みやすい</li>
+        <li>✅ 保守しやすい</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 1 章 2waySQL とは</span><span>1</span></div>
+</section>
+
+<!-- ============ 第2章 なぜ2waySQLが重要なのか(前半) ============ -->
+<section class="sheet" id="ch2">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 2 章</div>
+    <h1>なぜ2waySQLが重要なのか</h1>
+    <h2>2.1 実務での必要性</h2>
+    <p>日本の業務システム開発では、以下の理由で2waySQLが広く使われています:</p>
+
+    <h3>2.1.1 複雑なクエリへの対応</h3>
+    <p><b>業務システムの特徴</b>:</p>
+    <ul>
+      <li>複数テーブルのJOIN</li>
+      <li>条件による動的なWHERE句</li>
+      <li>複雑な集計処理</li>
+    </ul>
+    <p><b>ORMの限界</b>:</p>
+    <pre>// ORMだとこうなる（読みにくい！）
+List&lt;Memo&gt; memos = memoRepository.findAll(
+    Specification.where(MemoSpecifications.titleContains(keyword))
+        .or(MemoSpecifications.contentContains(keyword))
+);</pre>
+    <p><b>2waySQLだとこうなる(読みやすい！)</b>:</p>
+    <pre>&lt;select id="searchByKeyword"&gt;
+    SELECT * FROM memos
+    WHERE title LIKE CONCAT('%', #{keyword}, '%')
+       OR content LIKE CONCAT('%', #{keyword}, '%')
+&lt;/select&gt;</pre>
+
+    <h3>2.1.2 パフォーマンスチューニング</h3>
+    <p><b>SQLが明示的</b>:</p>
+    <ul>
+      <li>どんなSQLが実行されるかすぐわかる</li>
+      <li>EXPLAIN(実行計画)を簡単に確認できる</li>
+      <li>インデックスの効果を検証しやすい</li>
+    </ul>
+    <p><b>ORMの場合</b>:</p>
+    <ul>
+      <li>生成されるSQLを確認するのが大変</li>
+      <li>意図しないN+1問題が発生しやすい</li>
+    </ul>
+
+    <h3>2.1.3 チーム開発</h3>
+    <p><b>SQLの可視性</b>:</p>
+    <ul>
+      <li>DBAやSQLに詳しいメンバーがレビューしやすい</li>
+      <li>SQLファイルだけ見ればロジックがわかる</li>
+      <li>新しいメンバーでも理解しやすい</li>
+    </ul>
+  </div>
+  <div class="footer"><span>第 2 章 なぜ2waySQLが重要なのか</span><span>2</span></div>
+</section>
+
+<!-- ============ 第2章(後半) + 第3章(前半) ============ -->
+<section class="sheet" id="ch3">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 2 章 / 第 3 章</div>
+    <h1>JPA との比較・MyBatis の基本構成</h1>
+    <h2>2.2 Spring Data JPAとの比較</h2>
+    <table>
+      <tr><th class="nowrap">項目</th><th class="trad">MyBatis 2waySQL</th><th class="modern">Spring Data JPA</th></tr>
+      <tr><td><b>学習曲線</b></td><td class="trad">SQLがわかれば使える</td><td class="modern">JPQLとエンティティ管理を学ぶ必要</td></tr>
+      <tr><td><b>複雑なクエリ</b></td><td class="trad">得意</td><td class="modern">苦手(ネイティブクエリに頼る)</td></tr>
+      <tr><td><b>パフォーマンス</b></td><td class="trad">チューニングしやすい</td><td class="modern">N+1問題が発生しやすい</td></tr>
+      <tr><td><b>コード量</b></td><td class="trad">やや多い</td><td class="modern">少ない(単純なCRUDは楽)</td></tr>
+      <tr><td><b>実務採用</b></td><td class="trad">日本で多い</td><td class="modern">海外で多い</td></tr>
+    </table>
+    <p><b>推奨</b>:</p>
+    <ul>
+      <li>業務システム(複雑なSQL) → MyBatis</li>
+      <li>シンプルなCRUD → Spring Data JPA</li>
+      <li>両方を組み合わせることも可能</li>
+    </ul>
+
+    <h2>3. MyBatisの基本構成</h2>
+    <h3>3.1 3つのコンポーネント</h3>
+    <div class="flow">【Mapperインターフェース】
+    ↓ ↑
+【Mapper XML】
+    ↓ ↑
+【データベース】</div>
+
+    <h3>3.1.1 Mapperインターフェース(Java)</h3>
+    <p><b>役割</b>: データベース操作のメソッドを定義</p>
+    <pre>package com.example.memoapp.mapper;
+
+import com.example.memoapp.entity.Memo;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import java.util.List;
+
+/**
+ * メモMapperインターフェース
+ *
+ * このインターフェースのメソッドと、Mapper XMLのSQLが紐付く
+ */
+@Mapper  // このアノテーションで、MyBatisがMapperとして認識
+public interface MemoMapper {
+
+    /** すべてのメモを取得 @return メモのリスト */
+    List&lt;Memo&gt; findAll();
+
+    /** IDでメモを取得 @param id メモID @return メモ（存在しない場合はnull） */
+    Memo findById(@Param("id") Long id);  // @Param で XML側のパラメータ名を指定
+
+    /** メモを新規作成 @param memo メモエンティティ @return 挿入件数（通常は1） */
+    int insert(Memo memo);
+
+    /** メモを更新 @param memo メモエンティティ @return 更新件数（通常は1） */
+    int update(Memo memo);
+
+    /** メモを削除 @param id メモID @return 削除件数（通常は1） */
+    int deleteById(@Param("id") Long id);
+}</pre>
+  </div>
+  <div class="footer"><span>第 3 章 MyBatis の基本構成</span><span>3</span></div>
+</section>
+
+<!-- ============ 第3章(続き) 3.1.2 Mapper XML ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 3 章</div>
+    <h1>Mapper XML(2waySQL)</h1>
+    <h3>3.1.2 Mapper XML(2waySQL)</h3>
+    <p><b>役割</b>: 実際に実行されるSQLを定義</p>
+    <pre>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd"&gt;
+
+&lt;!-- namespace: Mapperインターフェースの完全修飾名 --&gt;
+&lt;mapper namespace="com.example.memoapp.mapper.MemoMapper"&gt;
+
+    &lt;!-- resultMap: SELECT結果とJavaオブジェクトのマッピング定義 --&gt;
+    &lt;resultMap id="memoResultMap" type="com.example.memoapp.entity.Memo"&gt;
+        &lt;id property="id" column="id"/&gt;
+        &lt;result property="title" column="title"/&gt;
+        &lt;result property="content" column="content"/&gt;
+        &lt;result property="createdAt" column="created_at"/&gt;
+        &lt;result property="updatedAt" column="updated_at"/&gt;
+    &lt;/resultMap&gt;
+
+    &lt;!-- id: Mapperインターフェースのメソッド名と一致させる --&gt;
+    &lt;select id="findAll" resultMap="memoResultMap"&gt;
+        SELECT
+            id, title, content, created_at, updated_at
+        FROM
+            memos
+        ORDER BY
+            created_at DESC
+    &lt;/select&gt;
+
+    &lt;select id="findById" resultMap="memoResultMap"&gt;
+        SELECT
+            id, title, content, created_at, updated_at
+        FROM
+            memos
+        WHERE
+            id = #{id}  &lt;!-- #{id} がプリペアドステートメントのパラメータ --&gt;
+    &lt;/select&gt;
+
+    &lt;!-- useGeneratedKeys: 自動採番されたIDを取得 --&gt;
+    &lt;!-- keyProperty: IDを格納するプロパティ名 --&gt;
+    &lt;insert id="insert" useGeneratedKeys="true" keyProperty="id"&gt;
+        INSERT INTO memos (
+            title, content, created_at, updated_at
+        ) VALUES (
+            #{title}, #{content}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    &lt;/insert&gt;
+
+    &lt;update id="update"&gt;
+        UPDATE memos
+        SET
+            title = #{title},
+            content = #{content}
+            &lt;!-- updated_atはトリガーで自動更新されるため不要 --&gt;
+        WHERE
+            id = #{id}
+    &lt;/update&gt;
+
+    &lt;delete id="deleteById"&gt;
+        DELETE FROM memos
+        WHERE id = #{id}
+    &lt;/delete&gt;
+
+&lt;/mapper&gt;</pre>
+  </div>
+  <div class="footer"><span>第 3 章 MyBatis の基本構成</span><span>4</span></div>
+</section>
+
+<!-- ============ 第3章(3.2) + 第4章(4.1.1) ============ -->
+<section class="sheet" id="ch4">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 3 章 / 第 4 章</div>
+    <h1>ファイル配置・パラメータの渡し方</h1>
+    <h2>3.2 ファイル配置</h2>
+    <div class="flow">src/main/
+├── java/com/example/memoapp/
+│   └── mapper/
+│       └── MemoMapper.java          ← Mapperインターフェース
+└── resources/
+    └── mybatis/mapper/
+        └── MemoMapper.xml            ← Mapper XML（2waySQL）</div>
+    <p><b>application.ymlで場所を指定</b>:</p>
+    <pre>mybatis:
+  mapper-locations: classpath:mybatis/mapper/**/*.xml
+  type-aliases-package: com.example.memoapp.entity</pre>
+
+    <h2>4. 基本的なSQL記述</h2>
+    <h3>4.1.1 <code>#{}</code> と <code>${}</code> の違い</h3>
+    <table>
+      <tr><th class="nowrap">記法</th><th>用途</th><th>SQLインジェクション対策</th><th>使いどころ</th></tr>
+      <tr><td><code>#{param}</code></td><td><b>プリペアドステートメント</b></td><td>✅ 安全</td><td><b>通常はこちらを使う</b></td></tr>
+      <tr><td><code>${param}</code></td><td>文字列置換</td><td>❌ 危険</td><td>テーブル名、カラム名の動的変更(非推奨)</td></tr>
+    </table>
+    <p><b>例</b>:</p>
+    <pre>&lt;!-- ✅ 正しい: #{} を使う --&gt;
+&lt;select id="findById"&gt;
+    SELECT * FROM memos WHERE id = #{id}
+&lt;/select&gt;
+&lt;!-- 実行されるSQL: SELECT * FROM memos WHERE id = ? --&gt;
+&lt;!-- パラメータ: [1] --&gt;
+
+&lt;!-- ❌ 危険: ${} を使うとSQLインジェクションの恐れ --&gt;
+&lt;select id="findById"&gt;
+    SELECT * FROM memos WHERE id = ${id}
+&lt;/select&gt;
+&lt;!-- 実行されるSQL: SELECT * FROM memos WHERE id = 1 --&gt;
+&lt;!-- もし id = "1 OR 1=1" と渡されたら... --&gt;</pre>
+  </div>
+  <div class="footer"><span>第 4 章 基本的なSQL記述</span><span>5</span></div>
+</section>
+
+<!-- ============ 第4章(続き) パラメータ・resultMap ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章</div>
+    <h1>基本的なSQL記述(続き)</h1>
+    <h2>4.1 パラメータの渡し方(続き)</h2>
+
+    <h3>4.1.2 単一パラメータ</h3>
+    <pre>// Mapperインターフェース
+Memo findById(@Param("id") Long id);</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="findById"&gt;
+    SELECT * FROM memos WHERE id = #{id}
+&lt;/select&gt;</pre>
+
+    <h3>4.1.3 複数パラメータ</h3>
+    <pre>// Mapperインターフェース
+List&lt;Memo&gt; findByTitleAndContent(
+    @Param("title") String title,
+    @Param("content") String content
+);</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="findByTitleAndContent"&gt;
+    SELECT * FROM memos
+    WHERE title = #{title}
+      AND content = #{content}
+&lt;/select&gt;</pre>
+
+    <h3>4.1.4 オブジェクトパラメータ</h3>
+    <pre>// Mapperインターフェース
+int insert(Memo memo);</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;insert id="insert"&gt;
+    INSERT INTO memos (title, content)
+    VALUES (#{title}, #{content})
+    &lt;!-- Memoオブジェクトのgetterを使ってtitle、contentを取得 --&gt;
+&lt;/insert&gt;</pre>
+
+    <h2>4.2 resultMap と resultType</h2>
+    <h3>4.2.1 resultType(シンプル)</h3>
+    <p><b>用途</b>: カラム名とプロパティ名が一致している場合</p>
+    <pre>&lt;!-- Entityクラス: com.example.memoapp.entity.Memo --&gt;
+&lt;select id="findAll" resultType="com.example.memoapp.entity.Memo"&gt;
+    SELECT
+        id, title, content,
+        created_at AS createdAt,  &lt;!-- スネークケース → キャメルケース --&gt;
+        updated_at AS updatedAt
+    FROM
+        memos
+&lt;/select&gt;</pre>
+    <p><b>または、application.ymlで自動変換</b>:</p>
+    <pre>mybatis:
+  configuration:
+    map-underscore-to-camel-case: true  # created_at → createdAt</pre>
+    <p>これで <code>AS</code> が不要になります:</p>
+    <pre>&lt;select id="findAll" resultType="com.example.memoapp.entity.Memo"&gt;
+    SELECT id, title, content, created_at, updated_at
+    FROM memos
+&lt;/select&gt;</pre>
+
+    <h3>4.2.2 resultMap(詳細)</h3>
+    <p><b>用途</b>: 複雑なマッピングが必要な場合</p>
+    <pre>&lt;resultMap id="memoResultMap" type="com.example.memoapp.entity.Memo"&gt;
+    &lt;id property="id" column="id"/&gt;          &lt;!-- 主キー --&gt;
+    &lt;result property="title" column="title"/&gt;
+    &lt;result property="content" column="content"/&gt;
+    &lt;result property="createdAt" column="created_at"/&gt;
+    &lt;result property="updatedAt" column="updated_at"/&gt;
+&lt;/resultMap&gt;
+
+&lt;select id="findAll" resultMap="memoResultMap"&gt;
+    SELECT id, title, content, created_at, updated_at
+    FROM memos
+&lt;/select&gt;</pre>
+  </div>
+  <div class="footer"><span>第 4 章 基本的なSQL記述</span><span>6</span></div>
+</section>
+
+<!-- ============ 第5章 動的SQL(前半 5.1/5.2) ============ -->
+<section class="sheet" id="ch5">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 5 章</div>
+    <h1>動的SQL</h1>
+
+    <h2>5.1 <code>&lt;if&gt;</code> - 条件分岐</h2>
+    <p><b>用途</b>: 条件によってSQLの一部を追加/削除</p>
+    <pre>&lt;select id="searchByKeyword"&gt;
+    SELECT * FROM memos
+    WHERE 1=1
+    &lt;if test="keyword != null and keyword != ''"&gt;
+        AND (
+            title LIKE CONCAT('%', #{keyword}, '%')
+            OR content LIKE CONCAT('%', #{keyword}, '%')
+        )
+    &lt;/if&gt;
+    ORDER BY created_at DESC
+&lt;/select&gt;</pre>
+    <p><b>動作</b>:</p>
+    <ul>
+      <li><code>keyword</code> が <code>null</code> または空文字 → <code>WHERE 1=1</code> のみ</li>
+      <li><code>keyword</code> が指定されている → <code>WHERE 1=1 AND (...)</code> が追加</li>
+    </ul>
+    <p><b>SQLツールでのテスト</b>:</p>
+    <pre>-- keywordが指定されている場合
+SELECT * FROM memos
+WHERE 1=1
+  AND (title LIKE '%学習%' OR content LIKE '%学習%')
+ORDER BY created_at DESC;
+
+-- keywordが指定されていない場合
+SELECT * FROM memos
+WHERE 1=1
+ORDER BY created_at DESC;</pre>
+
+    <h2>5.2 <code>&lt;where&gt;</code> - WHERE句の自動生成</h2>
+    <p><b>用途</b>: <code>WHERE 1=1</code> を書かずに動的にWHERE句を生成</p>
+    <pre>&lt;select id="searchMemos"&gt;
+    SELECT * FROM memos
+    &lt;where&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (title LIKE CONCAT('%', #{keyword}, '%')
+                 OR content LIKE CONCAT('%', #{keyword}, '%'))
+        &lt;/if&gt;
+        &lt;if test="startDate != null"&gt;
+            AND created_at &gt;= #{startDate}
+        &lt;/if&gt;
+        &lt;if test="endDate != null"&gt;
+            AND created_at &amp;lt;= #{endDate}  &lt;!-- &lt; は &amp;lt; でエスケープ --&gt;
+        &lt;/if&gt;
+    &lt;/where&gt;
+    ORDER BY created_at DESC
+&lt;/select&gt;</pre>
+    <p><b>メリット</b>:</p>
+    <ul>
+      <li>先頭の <code>AND</code> を自動で削除してくれる</li>
+      <li>すべての条件が <code>false</code> なら <code>WHERE</code> 自体を削除</li>
+    </ul>
+    <p><b>動作例</b>:</p>
+    <pre>-- keywordのみ指定
+SELECT * FROM memos
+WHERE title LIKE '%学習%' OR content LIKE '%学習%'
+ORDER BY created_at DESC;
+
+-- すべて指定
+SELECT * FROM memos
+WHERE (title LIKE '%学習%' OR content LIKE '%学習%')
+  AND created_at &gt;= '2025-01-01'
+  AND created_at &lt;= '2025-12-31'
+ORDER BY created_at DESC;
+
+-- 何も指定なし
+SELECT * FROM memos
+ORDER BY created_at DESC;</pre>
+  </div>
+  <div class="footer"><span>第 5 章 動的SQL</span><span>7</span></div>
+</section>
+
+<!-- ============ 第5章 動的SQL(後半 5.3/5.4/5.5) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 5 章</div>
+    <h1>動的SQL(続き)</h1>
+
+    <h2>5.3 <code>&lt;choose&gt;</code>, <code>&lt;when&gt;</code>, <code>&lt;otherwise&gt;</code> - switch文</h2>
+    <p><b>用途</b>: 複数の条件から1つを選ぶ</p>
+    <pre>&lt;select id="findMemos"&gt;
+    SELECT * FROM memos
+    ORDER BY
+    &lt;choose&gt;
+        &lt;when test="sortBy == 'title'"&gt;
+            title ASC
+        &lt;/when&gt;
+        &lt;when test="sortBy == 'updated'"&gt;
+            updated_at DESC
+        &lt;/when&gt;
+        &lt;otherwise&gt;
+            created_at DESC
+        &lt;/otherwise&gt;
+    &lt;/choose&gt;
+&lt;/select&gt;</pre>
+    <p><b>動作</b>:</p>
+    <ul>
+      <li><code>sortBy</code> が <code>"title"</code> → <code>ORDER BY title ASC</code></li>
+      <li><code>sortBy</code> が <code>"updated"</code> → <code>ORDER BY updated_at DESC</code></li>
+      <li>それ以外 → <code>ORDER BY created_at DESC</code></li>
+    </ul>
+
+    <h2>5.4 <code>&lt;foreach&gt;</code> - IN句の動的生成</h2>
+    <p><b>用途</b>: 配列やリストを使ったIN句</p>
+    <pre>// Mapperインターフェース
+List&lt;Memo&gt; findByIds(@Param("ids") List&lt;Long&gt; ids);</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="findByIds"&gt;
+    SELECT * FROM memos
+    WHERE id IN
+    &lt;foreach item="id" collection="ids" open="(" separator="," close=")"&gt;
+        #{id}
+    &lt;/foreach&gt;
+&lt;/select&gt;</pre>
+    <p><b>動作</b>:</p>
+    <pre>// Java
+List&lt;Long&gt; ids = Arrays.asList(1L, 2L, 3L);
+memoMapper.findByIds(ids);
+
+// 生成されるSQL
+SELECT * FROM memos
+WHERE id IN (?, ?, ?)
+-- パラメータ: [1, 2, 3]</pre>
+
+    <h2>5.5 <code>&lt;set&gt;</code> - UPDATE文の動的生成</h2>
+    <p><b>用途</b>: 指定されたフィールドのみ更新</p>
+    <pre>&lt;update id="updateSelective"&gt;
+    UPDATE memos
+    &lt;set&gt;
+        &lt;if test="title != null"&gt;
+            title = #{title},
+        &lt;/if&gt;
+        &lt;if test="content != null"&gt;
+            content = #{content},
+        &lt;/if&gt;
+        updated_at = CURRENT_TIMESTAMP
+    &lt;/set&gt;
+    WHERE id = #{id}
+&lt;/update&gt;</pre>
+    <p><b>動作</b>:</p>
+    <pre>// titleのみ更新
+Memo memo = new Memo();
+memo.setId(1L);
+memo.setTitle("新しいタイトル");
+memoMapper.updateSelective(memo);
+
+// 生成されるSQL
+UPDATE memos
+SET title = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?</pre>
+  </div>
+  <div class="footer"><span>第 5 章 動的SQL</span><span>8</span></div>
+</section>
+
+<!-- ============ 第6章 実践例集(前半 6.1/6.2) ============ -->
+<section class="sheet" id="ch6">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章</div>
+    <h1>実践例集</h1>
+
+    <h2>6.1 ページング</h2>
+    <pre>// Mapperインターフェース
+List&lt;Memo&gt; findWithPaging(
+    @Param("offset") int offset,
+    @Param("limit") int limit
+);</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="findWithPaging"&gt;
+    SELECT * FROM memos
+    ORDER BY created_at DESC
+    LIMIT #{limit} OFFSET #{offset}
+&lt;/select&gt;</pre>
+    <p><b>使用例</b>:</p>
+    <pre>// 1ページ目（0〜9件目）
+List&lt;Memo&gt; page1 = memoMapper.findWithPaging(0, 10);
+
+// 2ページ目（10〜19件目）
+List&lt;Memo&gt; page2 = memoMapper.findWithPaging(10, 10);</pre>
+
+    <h2>6.2 複数テーブルのJOIN</h2>
+    <pre>-- テーブル構成
+CREATE TABLE categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL
+);
+
+ALTER TABLE memos ADD COLUMN category_id BIGINT;
+ALTER TABLE memos ADD FOREIGN KEY (category_id) REFERENCES categories(id);</pre>
+    <pre>// Entityクラス
+@Data
+public class MemoWithCategory {
+    private Long id;
+    private String title;
+    private String content;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+    private Long categoryId;
+    private String categoryName;  // JOINで取得
+}</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;resultMap id="memoWithCategoryMap" type="com.example.memoapp.entity.MemoWithCategory"&gt;
+    &lt;id property="id" column="memo_id"/&gt;
+    &lt;result property="title" column="title"/&gt;
+    &lt;result property="content" column="content"/&gt;
+    &lt;result property="createdAt" column="created_at"/&gt;
+    &lt;result property="updatedAt" column="updated_at"/&gt;
+    &lt;result property="categoryId" column="category_id"/&gt;
+    &lt;result property="categoryName" column="category_name"/&gt;
+&lt;/resultMap&gt;
+
+&lt;select id="findAllWithCategory" resultMap="memoWithCategoryMap"&gt;
+    SELECT
+        m.id AS memo_id,
+        m.title, m.content,
+        m.created_at, m.updated_at,
+        m.category_id,
+        c.name AS category_name
+    FROM
+        memos m
+    LEFT JOIN
+        categories c ON m.category_id = c.id
+    ORDER BY
+        m.created_at DESC
+&lt;/select&gt;</pre>
+  </div>
+  <div class="footer"><span>第 6 章 実践例集</span><span>9</span></div>
+</section>
+
+<!-- ============ 第6章 実践例集(後半 6.3/6.4) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章</div>
+    <h1>実践例集(続き)</h1>
+
+    <h2>6.3 集計クエリ</h2>
+    <pre>// DTOクラス
+@Data
+public class MemoCategoryCount {
+    private String categoryName;
+    private Long count;
+}</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="countByCategory" resultType="com.example.memoapp.dto.MemoCategoryCount"&gt;
+    SELECT
+        c.name AS categoryName,
+        COUNT(m.id) AS count
+    FROM
+        categories c
+    LEFT JOIN
+        memos m ON c.id = m.category_id
+    GROUP BY
+        c.id, c.name
+    ORDER BY
+        count DESC
+&lt;/select&gt;</pre>
+
+    <h2>6.4 複雑な検索条件</h2>
+    <pre>// 検索条件DTO
+@Data
+public class MemoSearchCriteria {
+    private String keyword;
+    private Long categoryId;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private String sortBy;  // "title", "created", "updated"
+}</pre>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="search" resultMap="memoResultMap"&gt;
+    SELECT * FROM memos
+    &lt;where&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (title LIKE CONCAT('%', #{keyword}, '%')
+                 OR content LIKE CONCAT('%', #{keyword}, '%'))
+        &lt;/if&gt;
+        &lt;if test="categoryId != null"&gt;
+            AND category_id = #{categoryId}
+        &lt;/if&gt;
+        &lt;if test="startDate != null"&gt;
+            AND created_at &gt;= #{startDate}
+        &lt;/if&gt;
+        &lt;if test="endDate != null"&gt;
+            AND created_at &amp;lt;= #{endDate}
+        &lt;/if&gt;
+    &lt;/where&gt;
+    ORDER BY
+    &lt;choose&gt;
+        &lt;when test="sortBy == 'title'"&gt;
+            title ASC
+        &lt;/when&gt;
+        &lt;when test="sortBy == 'updated'"&gt;
+            updated_at DESC
+        &lt;/when&gt;
+        &lt;otherwise&gt;
+            created_at DESC
+        &lt;/otherwise&gt;
+    &lt;/choose&gt;
+&lt;/select&gt;</pre>
+  </div>
+  <div class="footer"><span>第 6 章 実践例集</span><span>10</span></div>
+</section>
+
+<!-- ============ 第7章 テスト方法 ============ -->
+<section class="sheet" id="ch7">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章</div>
+    <h1>テスト方法</h1>
+
+    <h2>7.1 SQLツールでの直接テスト</h2>
+    <p><b>手順</b>:</p>
+    <ol>
+      <li>Mapper XMLからSQLをコピー</li>
+      <li>動的SQL部分(<code>&lt;if&gt;</code>など)を削除または手動で編集</li>
+      <li>パラメータ(<code>#{xxx}</code>)を実際の値に置き換え</li>
+      <li>SQLツール(DBeaver、pgAdminなど)で実行</li>
+    </ol>
+    <p><b>例</b>:</p>
+    <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="searchByKeyword"&gt;
+    SELECT * FROM memos
+    &lt;where&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (title LIKE CONCAT('%', #{keyword}, '%')
+                 OR content LIKE CONCAT('%', #{keyword}, '%'))
+        &lt;/if&gt;
+    &lt;/where&gt;
+    ORDER BY created_at DESC
+&lt;/select&gt;</pre>
+    <p>↓ SQLツールで実行</p>
+    <pre>-- keywordありの場合
+SELECT * FROM memos
+WHERE (title LIKE '%学習%' OR content LIKE '%学習%')
+ORDER BY created_at DESC;
+
+-- keywordなしの場合
+SELECT * FROM memos
+ORDER BY created_at DESC;</pre>
+
+    <h2>7.2 単体テスト</h2>
+    <pre>@MybatisTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class MemoMapperTest {
+
+    @Autowired
+    private MemoMapper memoMapper;
+
+    @Test
+    void findById_存在するIDを指定すると_メモが取得できる() {
+        // Given: テストデータ準備
+        Memo memo = new Memo();
+        memo.setTitle("テストメモ");
+        memo.setContent("テスト内容");
+        memoMapper.insert(memo);
+
+        // When: テスト対象メソッド実行
+        Memo found = memoMapper.findById(memo.getId());
+
+        // Then: 検証
+        assertNotNull(found);
+        assertEquals("テストメモ", found.getTitle());
+        assertEquals("テスト内容", found.getContent());
+    }
+
+    @Test
+    void searchByKeyword_キーワードを含むメモが取得できる() {
+        // Given
+        Memo memo1 = new Memo();
+        memo1.setTitle("Java学習");
+        memo1.setContent("Spring Bootを勉強中");
+        memoMapper.insert(memo1);
+
+        Memo memo2 = new Memo();
+        memo2.setTitle("買い物リスト");
+        memo2.setContent("牛乳、パン");
+        memoMapper.insert(memo2);
+
+        // When
+        List&lt;Memo&gt; results = memoMapper.searchByKeyword("学習");
+
+        // Then
+        assertEquals(1, results.size());
+        assertEquals("Java学習", results.get(0).getTitle());
+    }
+}</pre>
+  </div>
+  <div class="footer"><span>第 7 章 テスト方法</span><span>11</span></div>
+</section>
+
+<!-- ============ 第8章 パフォーマンスチューニング ============ -->
+<section class="sheet" id="ch8">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 8 章</div>
+    <h1>パフォーマンスチューニング</h1>
+
+    <h2>8.1 実行計画の確認</h2>
+    <pre>-- PostgreSQL
+EXPLAIN ANALYZE
+SELECT * FROM memos
+WHERE title LIKE '%学習%';
+
+-- 結果例:
+-- Seq Scan on memos  (cost=0.00..35.50 rows=1 width=100)
+--   Filter: (title ~~ '%学習%'::text)
+--   Rows Removed by Filter: 4
+-- Planning Time: 0.123 ms
+-- Execution Time: 0.456 ms</pre>
+    <p><b>確認ポイント</b>:</p>
+    <ul>
+      <li><code>Seq Scan</code>(全件スキャン) → インデックスが使われていない</li>
+      <li><code>Index Scan</code> → インデックスが使われている ✅</li>
+    </ul>
+
+    <h2>8.2 N+1問題の回避</h2>
+    <p><b>悪い例</b>:</p>
+    <pre>&lt;!-- メモ一覧を取得 --&gt;
+&lt;select id="findAll"&gt;
+    SELECT * FROM memos
+&lt;/select&gt;
+
+&lt;!-- カテゴリを1件ずつ取得（N回実行される！） --&gt;
+&lt;select id="findCategoryById"&gt;
+    SELECT * FROM categories WHERE id = #{id}
+&lt;/select&gt;</pre>
+    <pre>// Service層で
+List&lt;Memo&gt; memos = memoMapper.findAll();  // 1回
+for (Memo memo : memos) {
+    Category category = categoryMapper.findById(memo.getCategoryId());  // N回
+    memo.setCategory(category);
+}</pre>
+    <p><b>良い例</b>:</p>
+    <pre>&lt;!-- 1回のSQLでJOINして取得 --&gt;
+&lt;select id="findAllWithCategory"&gt;
+    SELECT
+        m.*,
+        c.name AS category_name
+    FROM
+        memos m
+    LEFT JOIN
+        categories c ON m.category_id = c.id
+&lt;/select&gt;</pre>
+
+    <h2>8.3 インデックスの活用</h2>
+    <pre>-- LIKE検索のインデックス（PostgreSQL）
+CREATE INDEX idx_memos_title_trgm ON memos USING gin (title gin_trgm_ops);
+
+-- 複合インデックス
+CREATE INDEX idx_memos_category_created ON memos(category_id, created_at DESC);</pre>
+  </div>
+  <div class="footer"><span>第 8 章 パフォーマンスチューニング</span><span>12</span></div>
+</section>
+
+<!-- ============ 第9章 トラブルシューティング ============ -->
+<section class="sheet" id="ch9">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 9 章</div>
+    <h1>トラブルシューティング</h1>
+    <div class="cols">
+      <h2>9.1 よくあるエラー</h2>
+      <h3>9.1.1 <code>Mapped Statements collection does not contain value for ...</code></h3>
+      <p><b>原因</b>: Mapper XMLの <code>id</code> とMapperインターフェースのメソッド名が一致していない</p>
+      <pre>// Mapperインターフェース
+List&lt;Memo&gt; findAllMemos();  // メソッド名</pre>
+      <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="findAllMemos"&gt;  &lt;!-- id をメソッド名と一致させる --&gt;
+    SELECT * FROM memos
+&lt;/select&gt;</pre>
+
+      <h3>9.1.2 <code>Invalid bound statement (not found)</code></h3>
+      <p><b>原因</b>: Mapper XMLが読み込まれていない</p>
+      <pre># application.yml
+mybatis:
+  mapper-locations: classpath:mybatis/mapper/**/*.xml  # パスを確認</pre>
+
+      <h3>9.1.3 <code>There is no getter for property named 'xxx'</code></h3>
+      <p><b>原因</b>: パラメータ名が間違っている</p>
+      <pre>// @Param でパラメータ名を明示
+Memo findById(@Param("id") Long id);</pre>
+      <pre>&lt;!-- Mapper XML --&gt;
+&lt;select id="findById"&gt;
+    SELECT * FROM memos WHERE id = #{id}  &lt;!-- @Paramで指定した名前を使う --&gt;
+&lt;/select&gt;</pre>
+
+      <h2>9.2 デバッグ方法</h2>
+      <h3>9.2.1 実行されるSQLを確認</h3>
+      <pre># application.yml
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl</pre>
+      <p>これでコンソールに実行SQLが出力されます:</p>
+      <pre>==&gt;  Preparing: SELECT * FROM memos WHERE id = ?
+==&gt; Parameters: 1(Long)
+&lt;==      Total: 1</pre>
+
+      <h3>9.2.2 ログレベルを上げる</h3>
+      <pre># application.yml
+logging:
+  level:
+    com.example.memoapp.mapper: DEBUG  # Mapper のログを詳細表示</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 9 章 トラブルシューティング</span><span>13</span></div>
+</section>
+
+<!-- ============ 第10章 ベストプラクティス(前半 10.1) ============ -->
+<section class="sheet" id="ch10">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 10 章</div>
+    <h1>ベストプラクティス</h1>
+    <h2>10.1 コーディング規約</h2>
+
+    <h3>10.1.1 SQLの整形</h3>
+    <pre>&lt;!-- ✅ 良い例: 整形されている --&gt;
+&lt;select id="findAll"&gt;
+    SELECT
+        id,
+        title,
+        content,
+        created_at,
+        updated_at
+    FROM
+        memos
+    ORDER BY
+        created_at DESC
+&lt;/select&gt;
+
+&lt;!-- ❌ 悪い例: 読みにくい --&gt;
+&lt;select id="findAll"&gt;
+    SELECT id,title,content,created_at,updated_at FROM memos ORDER BY created_at DESC
+&lt;/select&gt;</pre>
+
+    <h3>10.1.2 カラム名の明示</h3>
+    <pre>&lt;!-- ✅ 良い例: カラム名を明示 --&gt;
+&lt;select id="findAll"&gt;
+    SELECT
+        id,
+        title,
+        content
+    FROM
+        memos
+&lt;/select&gt;
+
+&lt;!-- ❌ 悪い例: * を使う --&gt;
+&lt;select id="findAll"&gt;
+    SELECT * FROM memos
+&lt;/select&gt;</pre>
+    <p><b>理由</b>:</p>
+    <ul>
+      <li>必要なカラムだけ取得することでパフォーマンス向上</li>
+      <li>テーブル構造が変わっても影響を受けにくい</li>
+    </ul>
+
+    <h3>10.1.3 コメントの活用</h3>
+    <pre>&lt;!--
+    メモ検索
+    動的条件:
+    - keyword: タイトルまたは内容に部分一致
+    - categoryId: カテゴリーで絞り込み
+    - startDate, endDate: 作成日の範囲指定
+--&gt;
+&lt;select id="search"&gt;
+    SELECT * FROM memos
+    &lt;where&gt;
+        &lt;!-- キーワード検索 --&gt;
+        &lt;if test="keyword != null and keyword != ''"&gt;
+            AND (title LIKE CONCAT('%', #{keyword}, '%')
+                 OR content LIKE CONCAT('%', #{keyword}, '%'))
+        &lt;/if&gt;
+        &lt;!-- カテゴリー絞り込み --&gt;
+        &lt;if test="categoryId != null"&gt;
+            AND category_id = #{categoryId}
+        &lt;/if&gt;
+    &lt;/where&gt;
+&lt;/select&gt;</pre>
+  </div>
+  <div class="footer"><span>第 10 章 ベストプラクティス</span><span>14</span></div>
+</section>
+
+<!-- ============ 第10章(後半 10.2/10.3) + 付録 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 10 章 / 付録</div>
+    <h1>セキュリティ・保守性・付録</h1>
+    <div class="cols">
+      <h2>10.2 セキュリティ</h2>
+      <h3>10.2.1 常に <code>#{}</code> を使う</h3>
+      <pre>&lt;!-- ✅ 安全 --&gt;
+&lt;select id="findById"&gt;
+    SELECT * FROM memos WHERE id = #{id}
+&lt;/select&gt;
+
+&lt;!-- ❌ 危険: SQLインジェクションの恐れ --&gt;
+&lt;select id="findById"&gt;
+    SELECT * FROM memos WHERE id = ${id}
+&lt;/select&gt;</pre>
+      <h3>10.2.2 <code>${}</code> を使う場合の注意</h3>
+      <p>どうしても <code>${}</code> を使う必要がある場合(テーブル名の動的変更など):</p>
+      <pre>// アプリケーション側でホワイトリストチェック
+String tableName = request.getParameter("table");
+if (!Arrays.asList("memos", "categories").contains(tableName)) {
+    throw new IllegalArgumentException("Invalid table name");
+}</pre>
+
+      <h2>10.3 保守性</h2>
+      <h3>10.3.1 SQL の再利用</h3>
+      <pre>&lt;!-- 共通部分を &lt;sql&gt; タグで定義 --&gt;
+&lt;sql id="memoColumns"&gt;
+    id,
+    title,
+    content,
+    created_at,
+    updated_at
+&lt;/sql&gt;
+
+&lt;!-- &lt;include&gt; で再利用 --&gt;
+&lt;select id="findAll"&gt;
+    SELECT
+        &lt;include refid="memoColumns"/&gt;
+    FROM
+        memos
+&lt;/select&gt;
+
+&lt;select id="findById"&gt;
+    SELECT
+        &lt;include refid="memoColumns"/&gt;
+    FROM
+        memos
+    WHERE
+        id = #{id}
+&lt;/select&gt;</pre>
+
+      <h2 id="appendix">付録</h2>
+      <h3>A. MyBatis設定チートシート</h3>
+      <pre>mybatis:
+  # Mapper XMLの場所
+  mapper-locations: classpath:mybatis/mapper/**/*.xml
+
+  # 型エイリアスのパッケージ
+  type-aliases-package: com.example.memoapp.entity
+
+  configuration:
+    # スネークケース → キャメルケース自動変換
+    map-underscore-to-camel-case: true
+
+    # SQL実行ログ
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+    # デフォルトのFetchサイズ
+    default-fetch-size: 100
+
+    # デフォルトのタイムアウト（秒）
+    default-statement-timeout: 30</pre>
+      <h3>B. 参考リンク</h3>
+      <ul>
+        <li>MyBatis 公式ドキュメント — <code>https://mybatis.org/mybatis-3/</code></li>
+        <li>MyBatis-Spring-Boot-Starter — <code>https://mybatis.org/spring-boot-starter/mybatis-spring-boot-autoconfigure/</code></li>
+        <li>PostgreSQL EXPLAIN解説 — <code>https://www.postgresql.org/docs/current/using-explain.html</code></li>
+      </ul>
+      <div class="goal"><b>MyBatisと2waySQLをマスターして、実務で通用する開発者になりましょう！</b> 🚀</div>
+    </div>
+  </div>
+  <div class="footer"><span>付録 設定チートシート・参考リンク</span><span>15</span></div>
+</section>
+
+</div><!-- /.paper-area -->
+
+</body>
+</html>

@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>メモ帳アプリケーション 環境構築手順書</title>
+<style>
+  :root {
+    --ink: #111827;
+    --sub: #374151;
+    --accent: #4338ca;
+    --trad: #b45309;   /* 従来型 = 琥珀 */
+    --trad-bg: #fffbeb;
+    --modern: #0e7490; /* モダン = シアン */
+    --modern-bg: #ecfeff;
+    --line: #cbd5e1;
+    --paper: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: #e2e8f0; scroll-behavior: smooth; }
+  body {
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.75;
+  }
+  /* ---- 画面表示: 紙面カラム + サイドバー目次(印刷時は通常レイアウトに戻す) ----
+     body を flex にし、左 = 紙面カラム(.paper-area、ここにスクロールバーが付く)、
+     右 = 目次(.toc)。スクロールバーがシートのすぐ横に出て、余白に目次が常駐する */
+  body { display: flex; height: 100vh; overflow: hidden; }
+  .paper-area { flex: 0 1 auto; min-width: 0; overflow: auto; scroll-behavior: smooth; order: 1; }
+  .toc {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 150px;
+    max-width: 260px;
+    align-self: flex-start;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    margin: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .12);
+    font-size: 9pt;
+    line-height: 1.5;
+  }
+  .toc-title { font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .toc a { display: block; color: var(--ink); text-decoration: none; padding: 2px 0; }
+  .toc a:hover { color: var(--accent); background: #eef2ff; }
+  /* 目次カラムの置き場が無い狭い画面では、目次なしの通常レイアウトに戻す */
+  @media (max-width: 1290px) {
+    .toc { display: none; }
+    body { display: block; height: auto; overflow: visible; }
+    .paper-area { overflow: visible; }
+  }
+  @media print {
+    .toc { display: none; }
+    body { display: block; height: auto; overflow: visible; }
+    .paper-area { overflow: visible; }
+  }
+  /* ---- A4 横のシート ---- */
+  .sheet {
+    width: 297mm;
+    min-height: 210mm;
+    background: var(--paper);
+    margin: 8mm auto;
+    padding: 14mm 16mm 18mm;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, .25);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-body { flex: 1; }
+  .cols { column-count: 2; column-gap: 12mm; column-rule: 1px solid #eef2f7; }
+  .footer {
+    margin-top: 6mm;
+    padding-top: 2.5mm;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between;
+    font-size: 8pt; color: var(--sub);
+  }
+  /* ---- 見出し ---- */
+  .chapter-tag {
+    display: inline-block;
+    background: var(--accent); color: #fff;
+    font-size: 9pt; font-weight: 700;
+    padding: 1mm 4mm; border-radius: 2mm;
+    margin-bottom: 3mm; letter-spacing: .1em;
+  }
+  h1 { font-size: 19pt; margin-bottom: 2mm; line-height: 1.4; }
+  .goal {
+    background: #eef2ff; border-left: 4px solid var(--accent);
+    padding: 2.5mm 5mm; margin: 3mm 0 5mm;
+    font-size: 10pt; border-radius: 0 1.5mm 1.5mm 0;
+  }
+  .goal b { color: var(--accent); }
+  h2 {
+    font-size: 12pt; color: var(--accent);
+    margin: 4.5mm 0 2mm;
+    padding-bottom: 1mm; border-bottom: 2px solid #e0e7ff;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 10.5pt; color: var(--ink);
+    margin: 3mm 0 1.5mm; break-after: avoid;
+  }
+  .sheet-body > .cols > h2:first-child, .sheet-body > h2:first-child { margin-top: 0; }
+  p { margin-bottom: 2.5mm; text-align: justify; }
+  ul, ol { margin: 0 0 2.5mm 5.5mm; }
+  li { margin-bottom: 1mm; }
+  b { font-weight: 700; }
+  /* ---- 表 ---- */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 8.5pt; margin: 2mm 0 3.5mm;
+    break-inside: avoid; line-height: 1.55;
+  }
+  th, td { border: 1px solid var(--line); padding: 1.4mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 700; white-space: nowrap; }
+  td.trad, th.trad { background: var(--trad-bg); }
+  td.modern, th.modern { background: var(--modern-bg); }
+  /* ---- コード ---- */
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: .92em; background: #f1f5f9;
+    padding: 0 1mm; border-radius: 1mm;
+  }
+  pre {
+    background: #0f172a; color: #e2e8f0;
+    font-family: Consolas, monospace; font-size: 8.5pt;
+    line-height: 1.6; padding: 3mm 4mm;
+    border-radius: 2mm; margin: 2mm 0 3.5mm;
+    white-space: pre-wrap; word-break: break-all;
+    break-inside: avoid;
+  }
+  pre .cm { color: #94a3b8; }
+  /* ---- 図(フロー) ---- */
+  .flow {
+    background: #f8fafc; border: 1px solid var(--line);
+    border-radius: 2mm; padding: 3mm 4mm;
+    font-family: Consolas, monospace; font-size: 8.5pt;
+    line-height: 1.8; white-space: pre;
+    margin: 2mm 0 3.5mm; break-inside: avoid;
+    overflow-x: auto;
+  }
+  /* ---- チェックリスト ---- */
+  .check {
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: 2mm; padding: 2.5mm 4mm 1.5mm;
+    margin-top: 3mm; break-inside: avoid;
+  }
+  .check .ttl { font-weight: 700; color: #15803d; font-size: 9.5pt; margin-bottom: 1mm; }
+  .check ul { list-style: none; margin-left: 0; }
+  .check li { padding-left: 6.5mm; position: relative; font-size: 9.5pt; }
+  .check li::before {
+    content: ""; position: absolute; left: 0; top: 1.6mm;
+    width: 3.2mm; height: 3.2mm;
+    border: 1.5px solid #16a34a; border-radius: .8mm;
+  }
+  /* ---- バッジ ---- */
+  .badge { display: inline-block; font-size: 8pt; font-weight: 700; padding: .2mm 2.2mm; border-radius: 1mm; margin-right: 1mm; }
+  .badge.t { background: var(--trad-bg); color: var(--trad); border: 1px solid var(--trad); }
+  .badge.m { background: var(--modern-bg); color: var(--modern); border: 1px solid var(--modern); }
+  .note {
+    background: #fef2f2; border-left: 4px solid #dc2626;
+    padding: 2mm 4mm; margin: 2mm 0 3mm;
+    font-size: 9pt; border-radius: 0 1.5mm 1.5mm 0;
+    break-inside: avoid;
+  }
+  /* ---- 表紙 ---- */
+  .cover { justify-content: center; text-align: center; }
+  .cover .sheet-body { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .cover h1 { font-size: 30pt; color: var(--accent); margin: 4mm 0 2mm; }
+  .cover .subtitle { font-size: 13pt; color: var(--sub); margin-bottom: 10mm; }
+  .cover table { width: 210mm; font-size: 10pt; text-align: left; }
+  /* ---- 印刷 ---- */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    html { background: none; }
+    .sheet { margin: 0; box-shadow: none; page-break-after: always; width: 297mm; min-height: 209mm; }
+    .sheet:last-child { page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="toc-title">目次</div>
+  <a href="#">表紙</a>
+  <a href="#ch1">第 1 章 はじめに</a>
+  <a href="#ch2">第 2 章 環境構築の 2 つの方法</a>
+  <a href="#ch3">第 3 章 Docker 方式</a>
+  <a href="#ch4">第 4 章 ローカル開発方式</a>
+  <a href="#ch5">第 5 章 環境構築の確認</a>
+  <a href="#ch6">第 6 章 プロジェクトのセットアップ</a>
+  <a href="#ch7">第 7 章 トラブルシューティング</a>
+  <a href="#appendix">付録</a>
+</nav>
+
+<div class="paper-area">
+
+<!-- ============ 表紙 ============ -->
+<section class="sheet cover">
+  <div class="sheet-body">
+    <div class="chapter-tag">learn-memo-app-traditional</div>
+    <h1>メモ帳アプリケーション<br>環境構築手順書</h1>
+    <div class="subtitle">開発未経験者向け ── Docker 方式（最短 10 分）とローカル開発方式（従来型）の 2 通りを 1 つずつ丁寧に</div>
+    <table>
+      <tr><th style="width:40mm">この手順書について</th><td>開発未経験者がメモ帳アプリケーションを開発できるように、必要なソフトウェアのインストールと設定方法を<b>1 つずつ丁寧に</b>説明します</td></tr>
+      <tr><th>2 つの方式</th><td>🐳 <b>Docker 方式（推奨）</b>: Docker Desktop のみで最短 10 分で起動可能 ／ 💻 <b>ローカル開発方式（従来型）</b>: Java・Maven 等を個別にインストール</td></tr>
+      <tr><th>対象読者</th><td>これから Java / Spring Boot の開発環境を初めて整える初学者</td></tr>
+      <tr><th>アクセス先</th><td>起動後、ブラウザで <code>http://localhost:8080/memos</code></td></tr>
+    </table>
+  </div>
+  <div class="footer"><span>メモ帳アプリケーション 環境構築手順書</span><span>表紙</span></div>
+</section>
+
+<!-- ============ 目次 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">目次</div>
+    <h1>目次</h1>
+    <div class="cols">
+      <table>
+        <tr><th style="width:12mm">章</th><th>タイトル</th><th style="width:18mm">ページ</th></tr>
+        <tr><td>1</td><td>はじめに</td><td>2</td></tr>
+        <tr><td>2</td><td>環境構築の 2 つの方法</td><td>3</td></tr>
+        <tr><td>3</td><td>🐳 Docker 方式（推奨・最短）</td><td>5</td></tr>
+        <tr><td>4</td><td>💻 ローカル開発方式（従来型）</td><td>7</td></tr>
+        <tr><td></td><td>4.1 必要なソフトウェア一覧</td><td>7</td></tr>
+        <tr><td></td><td>4.2 Java Development Kit (JDK)</td><td>8</td></tr>
+        <tr><td></td><td>4.3 統合開発環境 (IDE)</td><td>11</td></tr>
+        <tr><td></td><td>4.4 ビルドツール (Maven)</td><td>13</td></tr>
+        <tr><td></td><td>4.5 データベース (PostgreSQL)</td><td>15</td></tr>
+        <tr><td></td><td>4.6 Docker</td><td>17</td></tr>
+        <tr><td></td><td>4.7 Git</td><td>20</td></tr>
+        <tr><td></td><td>4.8 データベース管理ツール</td><td>22</td></tr>
+        <tr><td>5</td><td>環境構築の確認</td><td>23</td></tr>
+        <tr><td>6</td><td>プロジェクトのセットアップ</td><td>24</td></tr>
+        <tr><td>7</td><td>トラブルシューティング</td><td>26</td></tr>
+        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>30</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>メモ帳アプリケーション 環境構築手順書</span><span>1</span></div>
+</section>
+
+<!-- ============ 1. はじめに ============ -->
+<section class="sheet" id="ch1">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 1 章</div>
+    <h1>はじめに</h1>
+    <h2>1.1 この手順書について</h2>
+    <p>本手順書は、開発未経験者がメモ帳アプリケーションを開発できるように、必要なソフトウェアのインストールと設定方法を <b>1 つずつ丁寧に</b> 説明します。<b>Docker 方式（推奨）</b>は Docker Desktop のみで最短 10 分で起動可能、<b>ローカル開発方式（従来型）</b>は Java、Maven 等を個別にインストールする方式です。</p>
+    <h2>1.2 環境構築で何をするのか</h2>
+    <p>プログラムを書いて動かすには、以下のような「道具」が必要です。</p>
+    <table>
+      <tr><th>道具</th><th>例え</th><th>実際の役割</th><th>Docker 方式</th><th>ローカル方式</th></tr>
+      <tr><td><b>Docker</b></td><td>仮想環境</td><td>全ての環境を 1 つにまとめる</td><td>✅ 必須</td><td>PostgreSQL のみ</td></tr>
+      <tr><td><b>JDK</b></td><td>大工道具セット</td><td>Java プログラムを書いて実行するための基本ツール</td><td>❌ 不要</td><td>✅ 必須</td></tr>
+      <tr><td><b>IDE</b></td><td>作業台</td><td>プログラムを書きやすくする編集ツール</td><td>🔧 コード編集時のみ</td><td>✅ 必須</td></tr>
+      <tr><td><b>Maven</b></td><td>材料調達係</td><td>必要なライブラリを自動で集めてくれるツール</td><td>❌ 不要</td><td>✅ 必須</td></tr>
+      <tr><td><b>PostgreSQL</b></td><td>倉庫</td><td>データ（メモの内容など）を保存する場所</td><td>❌ 不要</td><td>🔧 Docker で代用可</td></tr>
+      <tr><td><b>Git</b></td><td>バージョン管理</td><td>プログラムの変更履歴を記録するツール</td><td>✅ 推奨</td><td>✅ 必須</td></tr>
+    </table>
+    <h2>1.3 所要時間</h2>
+    <p><b>🐳 Docker 方式</b>: 初めての方 = 約 10-20 分（Docker Desktop インストール含む）／ 経験者 = 約 5 分。<b>💻 ローカル開発方式</b>: 初めての方 = 約 2-3 時間 ／ 経験者 = 約 30 分-1 時間。</p>
+  </div>
+  <div class="footer"><span>第 1 章 はじめに</span><span>2</span></div>
+</section>
+
+<!-- ============ 2. 環境構築の2つの方法 ============ -->
+<section class="sheet" id="ch2">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 2 章</div>
+    <h1>環境構築の 2 つの方法</h1>
+    <h2>2.1 方法の比較</h2>
+    <table>
+      <tr><th>項目</th><th>🐳 Docker 方式</th><th>💻 ローカル開発方式</th></tr>
+      <tr><td><b>必要な知識</b></td><td>Docker の基本操作のみ</td><td>Java、Maven、PostgreSQL の知識</td></tr>
+      <tr><td><b>インストール数</b></td><td>1 つ（Docker Desktop）</td><td>4-5 個（JDK、Maven、PostgreSQL 等）</td></tr>
+      <tr><td><b>環境の独立性</b></td><td>✅ 完全に独立</td><td>❌ システムに直接インストール</td></tr>
+      <tr><td><b>他プロジェクトへの影響</b></td><td>✅ なし</td><td>⚠️ バージョン競合の可能性</td></tr>
+      <tr><td><b>初回起動時間</b></td><td>5-10 分（ビルド含む）</td><td>即座</td></tr>
+      <tr><td><b>ディスク使用量</b></td><td>約 500MB-1GB</td><td>約 200-300MB</td></tr>
+      <tr><td><b>デバッグのしやすさ</b></td><td>🔧 ログ確認が主</td><td>✅ IDE 統合デバッグ可</td></tr>
+      <tr><td><b>学習目的</b></td><td>Docker 学習に最適</td><td>Java 開発の基礎学習に最適</td></tr>
+    </table>
+  </div>
+  <div class="footer"><span>第 2 章 環境構築の 2 つの方法</span><span>3</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 2 章（続き）</div>
+    <h1>2.2 推奨する方法</h1>
+    <p><b>🐳 Docker 方式を推奨する場合:</b></p>
+    <ul>
+      <li>✅ とにかく最短で動かしたい</li>
+      <li>✅ 他のプロジェクトと環境を分離したい</li>
+      <li>✅ Docker を学習したい</li>
+      <li>✅ チーム開発で環境を統一したい</li>
+    </ul>
+    <p><b>💻 ローカル開発方式を推奨する場合:</b></p>
+    <ul>
+      <li>✅ Java 開発の基礎から学びたい</li>
+      <li>✅ IDE 統合デバッグを活用したい</li>
+      <li>✅ 既に Java 環境が整っている</li>
+      <li>✅ Docker をインストールできない環境</li>
+    </ul>
+    <div class="goal"><b>初学者へのアドバイス</b>: まず Docker 方式で動かしてアプリケーションの動作を理解し、その後ローカル開発方式で Java 開発の詳細を学ぶのがおすすめです。</div>
+  </div>
+  <div class="footer"><span>第 2 章 環境構築の 2 つの方法</span><span>4</span></div>
+</section>
+
+<!-- ============ 3. Docker方式 ============ -->
+<section class="sheet" id="ch3">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 3 章</div>
+    <h1>🐳 Docker 方式（推奨・最短）</h1>
+    <div class="cols">
+      <h2>3.1 必要なもの</h2>
+      <ul>
+        <li><b>Docker Desktop</b> のみ</li>
+      </ul>
+      <h2>3.2 インストール手順</h2>
+      <h3>Windows</h3>
+      <ol>
+        <li><b>Docker Desktop のダウンロード</b>: <a href="https://www.docker.com/products/docker-desktop/">Docker Desktop for Windows</a> にアクセスし、"Download for Windows" をクリック</li>
+        <li><b>インストール</b>: ダウンロードした <code>Docker Desktop Installer.exe</code> を実行。インストールウィザードに従って進める。WSL 2 のインストールを求められた場合は指示に従う</li>
+        <li><b>Docker Desktop の起動</b>: インストール後、Docker Desktop を起動。初回起動時はチュートリアルが表示されるがスキップ可能</li>
+        <li><b>インストール確認</b>:</li>
+      </ol>
+      <pre>docker --version
+docker compose version</pre>
+      <h3>macOS</h3>
+      <ol>
+        <li><b>Docker Desktop のダウンロード</b>: <a href="https://www.docker.com/products/docker-desktop/">Docker Desktop for Mac</a> にアクセスし、Apple シリコン（M1/M2）版または Intel 版を選択してダウンロード</li>
+        <li><b>インストール</b>: ダウンロードした <code>.dmg</code> ファイルを開き、Docker.app を Applications フォルダにドラッグ</li>
+        <li><b>Docker Desktop の起動</b>: Applications から Docker を起動。メニューバーに Docker アイコンが表示されるまで待つ</li>
+        <li><b>インストール確認</b>:</li>
+      </ol>
+      <pre>docker --version
+docker compose version</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 3 章 Docker 方式</span><span>5</span></div>
+</section>
+
+<!-- ============ 3.3 / 3.4 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 3 章（続き）</div>
+    <h1>3.3 アプリケーションの起動・3.4 日常的な使い方</h1>
+    <div class="cols">
+      <h2>3.3 アプリケーションの起動</h2>
+      <ol>
+        <li><b>プロジェクトのクローン</b>:</li>
+      </ol>
+      <pre>git clone https://github.com/fukt-dev/learn-memo-app-traditional.git
+cd learn-memo-app-traditional</pre>
+      <ol start="2">
+        <li><b>全サービスの起動</b>:</li>
+      </ol>
+      <pre>docker compose up --build</pre>
+      <p>初回起動時の流れ:</p>
+      <ul>
+        <li>Maven が依存ライブラリをダウンロード（2-3 分）</li>
+        <li>Java アプリケーションをビルド（2-3 分）</li>
+        <li>PostgreSQL コンテナを起動</li>
+        <li>アプリケーションコンテナを起動</li>
+        <li><b>起動時に Flyway がデータベースマイグレーションを自動実行</b>（<code>memos</code> テーブルが作成される）</li>
+      </ul>
+      <ol start="3">
+        <li><b>起動確認</b>: ブラウザで <code>http://localhost:8080/memos</code> にアクセス。ログに以下が表示されていれば成功です:</li>
+      </ol>
+      <pre>Successfully applied 1 migration to schema "public"
+Started MemoAppApplication in X.XXX seconds</pre>
+      <ol start="4">
+        <li><b>停止</b>: <code>Ctrl+C</code> で停止。または別ターミナルで <code>docker compose down</code></li>
+      </ol>
+      <h2>3.4 日常的な使い方</h2>
+      <pre><span class="cm"># バックグラウンド起動</span>
+docker compose up -d
+
+<span class="cm"># ログ確認</span>
+docker compose logs -f app
+
+<span class="cm"># 停止</span>
+docker compose down
+
+<span class="cm"># データベースも含めて完全リセット</span>
+docker compose down -v</pre>
+      <div class="goal"><b>これで完了！</b> 次は「6. プロジェクトのセットアップ」（18 ページ）へ進んでください。</div>
+    </div>
+  </div>
+  <div class="footer"><span>第 3 章 Docker 方式</span><span>6</span></div>
+</section>
+
+<!-- ============ 4. ローカル開発方式 / 4.1 ============ -->
+<section class="sheet" id="ch4">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章</div>
+    <h1>💻 ローカル開発方式（従来型）</h1>
+    <p>ローカルに Java 環境を構築して開発する従来の方式です。</p>
+    <div class="cols">
+      <h2>4.1 必要なソフトウェア一覧</h2>
+      <h3>必須ソフトウェア</h3>
+      <table>
+        <tr><th>ソフトウェア</th><th>用途</th><th>インストール必須度</th></tr>
+        <tr><td>JDK 17 以上</td><td>Java プログラムの実行環境</td><td>⭐⭐⭐ 必須</td></tr>
+        <tr><td>IDE (IntelliJ IDEA 推奨)</td><td>コード編集</td><td>⭐⭐⭐ 必須</td></tr>
+        <tr><td>Maven 3.9 以上</td><td>ビルドツール</td><td>⭐⭐⭐ 必須 (IDE に含まれる場合は不要)</td></tr>
+        <tr><td>Git</td><td>バージョン管理</td><td>⭐⭐⭐ 必須</td></tr>
+      </table>
+      <h3>推奨ソフトウェア</h3>
+      <table>
+        <tr><th>ソフトウェア</th><th>用途</th><th>インストール推奨度</th></tr>
+        <tr><td>Docker</td><td>PostgreSQL 環境</td><td>⭐⭐⭐ 強く推奨</td></tr>
+        <tr><td>PostgreSQL 16</td><td>データベース</td><td>⭐⭐ 推奨 (Docker があれば不要)</td></tr>
+        <tr><td>DBeaver</td><td>データベース管理</td><td>⭐⭐ 推奨</td></tr>
+      </table>
+      <h3>OS 別推奨構成</h3>
+      <ul>
+        <li><b>Windows</b>: JDK 17 (Oracle JDK または Adoptium) ／ IntelliJ IDEA Community Edition ／ Docker Desktop for Windows ／ Git for Windows</li>
+        <li><b>macOS</b>: JDK 17 (Homebrew 推奨) ／ IntelliJ IDEA Community Edition ／ Docker Desktop for Mac ／ Git (macOS に標準搭載)</li>
+        <li><b>Linux (Ubuntu/Debian)</b>: JDK 17 (apt 経由) ／ IntelliJ IDEA Community Edition ／ Docker Engine ／ Git (標準搭載)</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 ローカル開発方式</span><span>7</span></div>
+</section>
+
+<!-- ============ 4.2 JDK (前半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.2</div>
+    <h1>4.2 Java Development Kit (JDK)</h1>
+    <div class="cols">
+      <h3>4.2.1 JDK とは何か</h3>
+      <p><b>JDK (Java Development Kit)</b> は、Java プログラムを書いて実行するための基本ツールセットです。</p>
+      <p><b>何ができるようになるか</b>:</p>
+      <ul>
+        <li>Java のソースコード（<code>.java</code> ファイル）を書ける</li>
+        <li>Java プログラムをコンパイル（翻訳）して実行できる形（<code>.class</code> ファイル）にする</li>
+        <li>作成したプログラムを実行する</li>
+      </ul>
+      <p><b>なぜ JDK 17 が必要か</b>:</p>
+      <ul>
+        <li>Spring Boot 3.x は Java 17 以上が必要</li>
+        <li>最新の機能とセキュリティアップデートを利用できる</li>
+      </ul>
+      <h3>4.2.2 JDK のインストール（Windows）</h3>
+      <p><b>方法 1: Oracle JDK（推奨）</b></p>
+      <ol>
+        <li><b>ダウンロード</b>: <a href="https://www.oracle.com/java/technologies/downloads/">Oracle JDK ダウンロードページ</a> にアクセスし、"Java 17" を選択。"Windows" タブから "x64 Installer" をダウンロード</li>
+        <li><b>インストール</b>: ダウンロードした <code>.exe</code> ファイルをダブルクリック。インストーラーの指示に従う。インストール先はデフォルトのまま進む（例: <code>C:\Program Files\Java\jdk-17</code>）</li>
+        <li><b>環境変数の設定</b>: 環境変数とは、Windows がプログラムを見つけるための「住所録」のようなものです。</li>
+      </ol>
+      <pre>1. スタートメニューを右クリック → 「システム」をクリック
+2. 「システムの詳細設定」をクリック
+3. 「環境変数」ボタンをクリック
+4. 「システム環境変数」の「新規」をクリック
+
+   変数名: JAVA_HOME
+   変数値: C:\Program Files\Java\jdk-17
+   （実際のインストール先に合わせて調整）
+
+5. 「システム環境変数」から「Path」を選択して「編集」
+6. 「新規」をクリックして以下を追加:
+   %JAVA_HOME%\bin
+
+7. すべてのウィンドウで「OK」をクリック</pre>
+      <p><b>方法 2: Adoptium（無料版、推奨代替）</b></p>
+      <ol>
+        <li><a href="https://adoptium.net/">Adoptium</a> にアクセス</li>
+        <li>"Temurin 17 (LTS)" を選択</li>
+        <li>Windows 用のインストーラーをダウンロード</li>
+        <li>インストーラーを実行（環境変数は自動設定されます）</li>
+      </ol>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.2 JDK</span><span>8</span></div>
+</section>
+
+<!-- ============ 4.2 JDK (後半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.2（続き）</div>
+    <h1>4.2 JDK（macOS / Linux・インストール確認）</h1>
+    <div class="cols">
+      <h3>4.2.2 JDK のインストール（macOS）</h3>
+      <p><b>Homebrew 使用（推奨）</b></p>
+      <pre><span class="cm"># Homebrewがインストールされていない場合</span>
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+<span class="cm"># JDK 17をインストール</span>
+brew install openjdk@17
+
+<span class="cm"># シンボリックリンク作成</span>
+sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk
+
+<span class="cm"># 環境変数設定（~/.zshrc または ~/.bash_profile に追加）</span>
+echo 'export JAVA_HOME=/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home' &gt;&gt; ~/.zshrc
+echo 'export PATH="$JAVA_HOME/bin:$PATH"' &gt;&gt; ~/.zshrc
+
+<span class="cm"># 設定を反映</span>
+source ~/.zshrc</pre>
+      <h3>4.2.2 JDK のインストール（Linux: Ubuntu/Debian）</h3>
+      <pre><span class="cm"># パッケージリストを更新</span>
+sudo apt update
+
+<span class="cm"># JDK 17をインストール</span>
+sudo apt install openjdk-17-jdk -y
+
+<span class="cm"># 環境変数設定（~/.bashrc に追加）</span>
+echo 'export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64' &gt;&gt; ~/.bashrc
+echo 'export PATH="$JAVA_HOME/bin:$PATH"' &gt;&gt; ~/.bashrc
+
+<span class="cm"># 設定を反映</span>
+source ~/.bashrc</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.2 JDK</span><span>9</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.2（続き）</div>
+    <h1>4.2 JDK（インストール確認）</h1>
+    <div class="cols">
+      <h3>4.2.3 インストール確認</h3>
+      <pre><span class="cm"># Javaのバージョン確認</span>
+java -version
+
+<span class="cm"># 期待される出力例:</span>
+<span class="cm"># openjdk version "17.0.9" 2023-10-17</span>
+<span class="cm"># OpenJDK Runtime Environment (build 17.0.9+9)</span>
+
+<span class="cm"># 環境変数の確認</span>
+echo $JAVA_HOME  <span class="cm"># macOS/Linux</span>
+echo %JAVA_HOME%  <span class="cm"># Windows (コマンドプロンプト)</span>
+$env:JAVA_HOME    <span class="cm"># Windows (PowerShell)</span></pre>
+      <p><b>重要</b>: バージョンが <code>17.x.x</code> 以上であることを確認してください。</p>
+      <div class="check">
+        <div class="ttl">✅ JDK インストール完了チェックリスト</div>
+        <ul>
+          <li><code>java -version</code> コマンドでバージョン 17 以上が表示される</li>
+          <li><code>JAVA_HOME</code> 環境変数が正しく設定されている</li>
+          <li>新しいターミナル/コマンドプロンプトで上記のコマンドが動作する</li>
+        </ul>
+      </div>
+      <p><b>トラブル時の確認ポイント:</b> バージョンが表示されない → PATH 環境変数の設定を確認 ／ 古いバージョンが表示される → 複数の JDK がインストールされていないか確認 ／ コマンドが見つからない → JDK のインストールをやり直す</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.2 JDK</span><span>10</span></div>
+</section>
+
+<!-- ============ 4.3 IDE ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.3</div>
+    <h1>4.3 統合開発環境 (IDE)</h1>
+    <div class="cols">
+      <h3>4.3.1 IDE とは何か</h3>
+      <p><b>IDE (Integrated Development Environment)</b> は、プログラムを書くための「超高機能なエディタ」です。</p>
+      <p><b>IDE があると便利なこと</b>:</p>
+      <ul>
+        <li>✅ コードを途中まで書くと、続きを自動で提案してくれる</li>
+        <li>✅ エラーがあると赤線で教えてくれる</li>
+        <li>✅ クラスやメソッドをクリック 1 つで定義場所に飛べる</li>
+        <li>✅ デバッグ（バグ探し）が簡単にできる</li>
+      </ul>
+      <h3>4.3.2 IntelliJ IDEA のインストール</h3>
+      <p><b>IntelliJ IDEA</b> は、Java 開発で最も人気のある IDE です。<b>すべての OS 共通手順（Community Edition = 無料版）</b>:</p>
+      <ol>
+        <li><b>ダウンロード</b>: <a href="https://www.jetbrains.com/idea/download/">IntelliJ IDEA ダウンロードページ</a> にアクセス。<b>Community Edition（無料）</b> の「Download」をクリックし、OS に合わせたインストーラーをダウンロード</li>
+        <li><b>インストール</b>: Windows は <code>.exe</code> ファイルを実行 ／ macOS は <code>.dmg</code> ファイルを開いてアプリケーションフォルダにドラッグ ／ Linux は <code>.tar.gz</code> を展開して <code>bin/idea.sh</code> を実行</li>
+        <li><b>初回起動設定</b>:</li>
+      </ol>
+      <pre>1. IntelliJ IDEAを起動
+2. 「Do not import settings」を選択（初回のみ）
+3. テーマを選択（DarculaまたはLight）
+4. プラグインのインストールは後でOK
+5. 「Start using IntelliJ IDEA」をクリック</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.3 IDE</span><span>11</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.3（続き）</div>
+    <h1>4.3 IDE（基本設定）</h1>
+    <div class="cols">
+      <h3>4.3.3 IDE の基本設定</h3>
+      <p><b>JDK の設定確認</b>:</p>
+      <pre>1. 「Configure」→「Project Structure」を開く
+2. 「Project」タブを選択
+3. 「Project SDK」でJDK 17が選択されているか確認
+4. なければ「Add SDK」→「JDK」から先ほどインストールしたJDK 17を選択</pre>
+      <p><b>Maven 設定確認（自動検出されているはず）</b>:</p>
+      <pre>1. 「Configure」→「Settings」（macOS: Preferences）
+2. 「Build, Execution, Deployment」→「Build Tools」→「Maven」
+3. Maven home directoryが設定されているか確認
+   （IntelliJ IDEAにバンドルされているMavenが使われます）</pre>
+      <div class="check">
+        <div class="ttl">✅ IDE インストール完了チェックリスト</div>
+        <ul>
+          <li>IntelliJ IDEA が起動できる</li>
+          <li>日本語化プラグイン（Japanese Language Pack）がインストールされている（任意）</li>
+          <li>Maven プロジェクトをインポートできる（確認は後ほど）</li>
+        </ul>
+      </div>
+      <p><b>トラブル時の確認ポイント:</b> 起動しない → システム要件を確認（メモリ不足の可能性）／ プラグインが見つからない → インターネット接続を確認 ／ 動作が遅い → メモリ設定を調整（Help → Edit Custom VM Options）</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.3 IDE</span><span>12</span></div>
+</section>
+
+<!-- ============ 4.4 Maven ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.4</div>
+    <h1>4.4 ビルドツール (Maven)</h1>
+    <div class="cols">
+      <h3>4.4.1 Maven とは何か</h3>
+      <p><b>Maven（メイヴン）</b> は、Java プロジェクトの「材料調達係」兼「組み立て係」です。</p>
+      <p><b>Maven の役割</b>:</p>
+      <ol>
+        <li><b>依存関係の管理</b>: 「Spring Boot 使いたい」→ Maven が自動でダウンロード。必要なライブラリが 100 個あっても、Maven が全部集めてくれる</li>
+        <li><b>ビルドの自動化</b>: コンパイル、テスト、パッケージ作成を 1 コマンドで実行。<code>mvn package</code> と打つだけでアプリが完成</li>
+        <li><b>プロジェクト構造の標準化</b>: どの Maven プロジェクトも同じフォルダ構成。新しいプロジェクトでも迷わない</li>
+      </ol>
+      <p><b>重要なファイル: pom.xml</b> ── プロジェクトの「設計図」。必要なライブラリ（依存関係）を記載し、ビルド方法を定義します。</p>
+      <h3>4.4.2 Maven のインストール</h3>
+      <p><b>IntelliJ IDEA を使う場合（推奨）</b>: IntelliJ IDEA には既に Maven がバンドルされています。別途インストール不要です。</p>
+      <p><b>スタンドアロン版のインストール（任意）</b></p>
+      <p>Windows:</p>
+      <ol>
+        <li><a href="https://maven.apache.org/download.cgi">Maven ダウンロードページ</a> から <code>apache-maven-3.9.x-bin.zip</code> をダウンロード</li>
+        <li><code>C:\Program Files\Apache\Maven</code> に展開</li>
+        <li>環境変数設定:</li>
+      </ol>
+      <pre>MAVEN_HOME = C:\Program Files\Apache\Maven\apache-maven-3.9.x
+Path に追加: %MAVEN_HOME%\bin</pre>
+      <p>macOS (Homebrew):</p>
+      <pre>brew install maven</pre>
+      <p>Linux (Ubuntu/Debian):</p>
+      <pre>sudo apt install maven -y</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.4 Maven</span><span>13</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.4（続き）</div>
+    <h1>4.4 Maven（インストール確認）</h1>
+    <div class="cols">
+      <h3>4.4.3 インストール確認</h3>
+      <pre>mvn -version
+
+<span class="cm"># 期待される出力例:</span>
+<span class="cm"># Apache Maven 3.9.5 (57804ffe001d7215b5e7bcb531cf83df38f93546)</span>
+<span class="cm"># Maven home: /opt/homebrew/Cellar/maven/3.9.5/libexec</span>
+<span class="cm"># Java version: 17.0.9, vendor: Homebrew</span></pre>
+      <div class="check">
+        <div class="ttl">✅ Maven インストール完了チェックリスト</div>
+        <ul>
+          <li><code>mvn -version</code> コマンドでバージョン 3.6 以上が表示される</li>
+          <li>Java version が 17 以上と表示される（Maven が認識している JDK）</li>
+          <li>新しいターミナル/コマンドプロンプトで上記のコマンドが動作する</li>
+        </ul>
+      </div>
+      <p><b>トラブル時の確認ポイント:</b> コマンドが見つからない → PATH 環境変数の設定を確認 ／ Java バージョンが違う → JAVA_HOME 環境変数を確認</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.4 Maven</span><span>14</span></div>
+</section>
+
+<!-- ============ 4.5 PostgreSQL (前半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.5</div>
+    <h1>4.5 データベース (PostgreSQL)</h1>
+    <div class="cols">
+      <h3>4.5.1 PostgreSQL とは何か</h3>
+      <p><b>PostgreSQL（ポストグレスキューエル）</b> は、データを保存・管理する「倉庫システム」です。</p>
+      <p><b>何を保存するのか</b>: メモのタイトル ／ メモの本文 ／ 作成日時、更新日時</p>
+      <p><b>なぜ PostgreSQL か</b>: ✅ 無料で使える（オープンソース）／ ✅ エンタープライズ（企業の業務システム）で広く使われている／ ✅ 機能が豊富（JSON 型、全文検索など）／ ✅ SQL 標準に準拠している。</p>
+      <h3>4.5.2 インストール方法の選択</h3>
+      <table>
+        <tr><th>方法</th><th>メリット</th><th>デメリット</th><th>推奨度</th></tr>
+        <tr><td><b>Docker</b></td><td>簡単に起動・停止できる、複数バージョンを共存可能</td><td>Docker の理解が必要</td><td>⭐⭐⭐ 強く推奨</td></tr>
+        <tr><td><b>直接インストール</b></td><td>Docker が不要</td><td>アンインストールが面倒、バージョン管理が難しい</td><td>⭐⭐ 可</td></tr>
+      </table>
+      <div class="note"><b>推奨</b>: Docker を使う方法（4.6 Docker で説明）。<b>本プロジェクトの docker-compose.yml は <code>postgres:16-alpine</code>（PostgreSQL 16）を使用しています。</b> 直接インストールする場合もバージョン 16 を推奨します。</div>
+      <h3>4.5.3 PostgreSQL 直接インストール（Docker を使わない場合）</h3>
+      <p><b>Windows</b></p>
+      <ol>
+        <li><a href="https://www.postgresql.org/download/windows/">PostgreSQL ダウンロードページ</a> にアクセス</li>
+        <li>"Download the installer" をクリック</li>
+        <li>PostgreSQL 16 の Windows x86-64 版をダウンロード</li>
+        <li>インストーラーを実行:</li>
+      </ol>
+      <pre>- Installation Directory: デフォルトのまま
+- Components: すべて選択（PostgreSQL Server、pgAdmin 4など）
+- Data Directory: デフォルトのまま
+- Password: postgres ユーザーのパスワードを設定（覚えておく！）
+- Port: 5432（デフォルト）
+- Locale: Japanese, Japan</pre>
+      <p><b>macOS (Homebrew)</b></p>
+      <pre><span class="cm"># PostgreSQLをインストール</span>
+brew install postgresql@16
+
+<span class="cm"># 自動起動設定</span>
+brew services start postgresql@16
+
+<span class="cm"># データベース作成</span>
+createdb memoapp</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.5 PostgreSQL</span><span>15</span></div>
+</section>
+
+<!-- ============ 4.5 PostgreSQL (後半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.5（続き）</div>
+    <h1>4.5 PostgreSQL（Linux・インストール確認）</h1>
+    <div class="cols">
+      <h3>4.5.3 直接インストール（Linux: Ubuntu/Debian）</h3>
+      <pre><span class="cm"># リポジトリ追加</span>
+sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" &gt; /etc/apt/sources.list.d/pgdg.list'
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+<span class="cm"># インストール</span>
+sudo apt update
+sudo apt install postgresql-16 -y
+
+<span class="cm"># サービス開始</span>
+sudo systemctl start postgresql
+sudo systemctl enable postgresql</pre>
+      <h3>4.5.4 インストール確認</h3>
+      <pre><span class="cm"># バージョン確認</span>
+psql --version
+
+<span class="cm"># 期待される出力例:</span>
+<span class="cm"># psql (PostgreSQL) 16.x</span></pre>
+      <div class="check">
+        <div class="ttl">✅ PostgreSQL インストール完了チェックリスト</div>
+        <ul>
+          <li><code>psql --version</code> コマンドでバージョン 16 が表示される</li>
+          <li>PostgreSQL サービスが起動している（Windows はサービス一覧、macOS/Linux は <code>pg_isready</code> コマンドで確認）</li>
+          <li>データベース接続ツール（pgAdmin、DBeaver 等）で localhost:5432 に接続できる（任意）</li>
+        </ul>
+      </div>
+      <div class="note"><b>注意</b>: 本プロジェクトでは Docker で PostgreSQL を使用するため、ローカルインストールは必須ではありません。</div>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.5 PostgreSQL</span><span>16</span></div>
+</section>
+
+<!-- ============ 4.6 Docker (前半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.6</div>
+    <h1>4.6 Docker</h1>
+    <div class="cols">
+      <h3>4.6.1 Docker とは何か</h3>
+      <p><b>Docker（ドッカー）</b> は、アプリケーションを「コンテナ」という箱に入れて動かす技術です。</p>
+      <p><b>コンテナとは</b>: アプリケーションとその動作に必要なものをすべて詰め込んだ「パッケージ」。どの環境（Windows、macOS、Linux）でも同じように動きます。</p>
+      <p><b>例え話</b>:</p>
+      <ul>
+        <li><b>従来</b>: 引っ越しで家具をバラバラに運ぶ（大変！）</li>
+        <li><b>Docker</b>: すべてをコンテナ（箱）に詰めて運ぶ（簡単！）</li>
+      </ul>
+      <p><b>PostgreSQL を Docker で動かすメリット</b>:</p>
+      <ul>
+        <li>✅ インストールが簡単（1 コマンドで起動）</li>
+        <li>✅ 不要になったら簡単に削除できる</li>
+        <li>✅ 複数バージョンを同時に動かせる</li>
+        <li>✅ 本番環境と同じ環境を作れる</li>
+      </ul>
+      <h3>4.6.2 Docker のインストール</h3>
+      <p>インストール手順は 3.2 インストール手順（4 ページ）と同じです（Docker 方式・ローカル方式共通）。Linux (Ubuntu) の場合:</p>
+      <pre><span class="cm"># 古いバージョンを削除（存在する場合）</span>
+sudo apt-get remove docker docker-engine docker.io containerd runc
+
+<span class="cm"># 必要なパッケージをインストール</span>
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg lsb-release
+
+<span class="cm"># Dockerの公式GPGキーを追加</span>
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+<span class="cm"># リポジトリ追加</span>
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list &gt; /dev/null
+
+<span class="cm"># Docker Engineをインストール</span>
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+<span class="cm"># 現在のユーザーをdockerグループに追加（sudo不要にする）</span>
+sudo usermod -aG docker $USER
+
+<span class="cm"># ログアウト・ログインして設定を反映</span></pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.6 Docker</span><span>17</span></div>
+</section>
+
+<!-- ============ 4.6 Docker (後半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.6（続き）</div>
+    <h1>4.6 Docker（確認・PostgreSQL コンテナ）</h1>
+    <div class="cols">
+      <h3>4.6.3 Docker インストール確認</h3>
+      <pre><span class="cm"># Dockerバージョン確認</span>
+docker --version
+
+<span class="cm"># Docker Composeバージョン確認</span>
+docker compose version
+
+<span class="cm"># 動作確認（Hello Worldコンテナを実行）</span>
+docker run hello-world
+
+<span class="cm"># 期待される出力:</span>
+<span class="cm"># Hello from Docker!</span>
+<span class="cm"># This message shows that your installation appears to be working correctly.</span></pre>
+      <h3>4.6.4 PostgreSQL コンテナの起動</h3>
+      <p><b>本プロジェクトでは、リポジトリ同梱の <code>docker-compose.yml</code> を使うのが基本です</b>（6. プロジェクトのセットアップ 参照）。Docker の理解のために、単発コマンドでも試せます:</p>
+      <pre><span class="cm"># PostgreSQLコンテナを起動（お試し用。プロジェクトでは compose を使う）</span>
+docker run --name postgres-trial \
+  -e POSTGRES_USER=memoapp_user \
+  -e POSTGRES_PASSWORD=memoapp_pass \
+  -e POSTGRES_DB=memoapp \
+  -p 5432:5432 \
+  -d postgres:16-alpine
+
+<span class="cm"># 起動確認</span>
+docker ps</pre>
+      <p><b>コマンドの説明</b>:</p>
+      <ul>
+        <li><code>--name postgres-trial</code>: コンテナに名前を付ける</li>
+        <li><code>-e POSTGRES_USER=...</code>: 環境変数を設定（データベースユーザー名）</li>
+        <li><code>-e POSTGRES_PASSWORD=...</code>: データベースパスワード</li>
+        <li><code>-e POSTGRES_DB=memoapp</code>: 最初に作成するデータベース名</li>
+        <li><code>-p 5432:5432</code>: ポート番号をマッピング（ホスト:コンテナ）</li>
+        <li><code>-d</code>: バックグラウンドで実行</li>
+        <li><code>postgres:16-alpine</code>: 使用する Docker イメージ（PostgreSQL 16 軽量版）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.6 Docker</span><span>18</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.6（続き）</div>
+    <h1>4.6 Docker（後片付け・チェック）</h1>
+    <div class="cols">
+      <p><b>お試しコンテナの後片付け</b>（プロジェクトの compose とポートが衝突するため、試したら削除してください）:</p>
+      <pre>docker stop postgres-trial
+docker rm postgres-trial</pre>
+      <div class="check">
+        <div class="ttl">✅ Docker インストール完了チェックリスト</div>
+        <ul>
+          <li><code>docker --version</code> コマンドでバージョンが表示される</li>
+          <li><code>docker compose version</code> コマンドでバージョンが表示される（Docker Compose V2）</li>
+          <li>Docker Desktop が起動している（Windows/macOS）</li>
+          <li><code>docker run hello-world</code> コマンドが成功する</li>
+        </ul>
+      </div>
+      <p><b>トラブル時の確認ポイント:</b> コマンドが見つからない → Docker のインストールをやり直す ／ Docker Desktop が起動しない → システム要件を確認（WSL2 が必要な場合あり）／ 権限エラー（Linux）→ 現在のユーザーを docker グループに追加</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.6 Docker</span><span>19</span></div>
+</section>
+
+<!-- ============ 4.7 Git ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.7</div>
+    <h1>4.7 Git</h1>
+    <div class="cols">
+      <h3>4.7.1 Git とは何か</h3>
+      <p><b>Git（ギット）</b> は、プログラムの変更履歴を記録する「タイムマシン」です。</p>
+      <p><b>Git でできること</b>:</p>
+      <ul>
+        <li>📝 ファイルの変更履歴を記録</li>
+        <li>🔄 過去のバージョンに戻す</li>
+        <li>👥 複数人で同時に開発</li>
+        <li>🌿 新機能を別ブランチで開発</li>
+      </ul>
+      <p><b>GitHub との違い</b>:</p>
+      <ul>
+        <li><b>Git</b>: ローカル（自分の PC）で動くツール</li>
+        <li><b>GitHub</b>: Git のリポジトリをクラウドで管理するサービス</li>
+      </ul>
+      <h3>4.7.2 Git のインストール</h3>
+      <p><b>Windows</b>:</p>
+      <ol>
+        <li><a href="https://git-scm.com/download/win">Git for Windows</a> からインストーラーをダウンロード</li>
+        <li>インストーラーを実行</li>
+        <li>すべてデフォルト設定で OK（特に変更不要）</li>
+      </ol>
+      <p><b>macOS</b>:</p>
+      <pre><span class="cm"># 方法1: Homebrew（推奨）</span>
+brew install git
+
+<span class="cm"># 方法2: Xcodeコマンドラインツール</span>
+xcode-select --install</pre>
+      <p><b>Linux (Ubuntu/Debian)</b>:</p>
+      <pre>sudo apt install git -y</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.7 Git</span><span>20</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.7（続き）</div>
+    <h1>4.7 Git（初期設定）</h1>
+    <div class="cols">
+      <h3>4.7.3 Git 初期設定</h3>
+      <pre><span class="cm"># ユーザー名を設定（GitHubと同じ名前推奨）</span>
+git config --global user.name "あなたの名前"
+
+<span class="cm"># メールアドレスを設定（GitHubと同じメール推奨）</span>
+git config --global user.email "your.email@example.com"
+
+<span class="cm"># デフォルトブランチ名をmainに設定</span>
+git config --global init.defaultBranch main
+
+<span class="cm"># 設定確認</span>
+git config --list</pre>
+      <div class="check">
+        <div class="ttl">✅ Git インストール完了チェックリスト</div>
+        <ul>
+          <li><code>git --version</code> コマンドでバージョン 2.0 以上が表示される</li>
+          <li><code>git config --global user.name</code> でユーザー名が設定されている</li>
+          <li><code>git config --global user.email</code> でメールアドレスが設定されている</li>
+        </ul>
+      </div>
+      <p><b>トラブル時の確認ポイント:</b> コマンドが見つからない → PATH 環境変数に Git が追加されているか確認 ／ 文字化けする（Windows）→ <code>git config --global core.quotepath false</code> を実行</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.7 Git</span><span>21</span></div>
+</section>
+
+<!-- ============ 4.8 データベース管理ツール ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.8</div>
+    <h1>4.8 データベース管理ツール</h1>
+    <div class="cols">
+      <h3>4.8.1 データベース管理ツールとは</h3>
+      <p>PostgreSQL のデータを見たり編集したりするための「可視化ツール」です。</p>
+      <p><b>できること</b>:</p>
+      <ul>
+        <li>📊 テーブルのデータを表形式で確認</li>
+        <li>✏️ SQL を書いて実行</li>
+        <li>🔍 データベース構造（テーブル、カラム）を確認</li>
+        <li>📈 実行計画の確認（パフォーマンス分析）</li>
+      </ul>
+      <h3>4.8.2 DBeaver のインストール（推奨）</h3>
+      <p><b>DBeaver</b> は無料で使える多機能なデータベース管理ツールです。</p>
+      <ol>
+        <li><a href="https://dbeaver.io/download/">DBeaver ダウンロードページ</a> にアクセス</li>
+        <li>OS に合わせたインストーラーをダウンロードして実行</li>
+      </ol>
+      <p><b>PostgreSQL 接続設定</b>:</p>
+      <ol>
+        <li>DBeaver を起動</li>
+        <li>「新しい接続」をクリック</li>
+        <li>「PostgreSQL」を選択</li>
+        <li>接続情報を入力:</li>
+      </ol>
+      <pre>ホスト: localhost
+ポート: 5432
+データベース: memoapp
+ユーザー名: memoapp_user
+パスワード: memoapp_pass</pre>
+      <ol start="5">
+        <li>「接続テスト」をクリックして成功を確認</li>
+        <li>「完了」をクリック</li>
+      </ol>
+      <h3>4.8.3 代替ツール</h3>
+      <table>
+        <tr><th>ツール</th><th>特徴</th><th>推奨度</th></tr>
+        <tr><td><b>DBeaver</b></td><td>多機能、無料、複数 DB 対応</td><td>⭐⭐⭐</td></tr>
+        <tr><td><b>pgAdmin</b></td><td>PostgreSQL 公式ツール</td><td>⭐⭐</td></tr>
+        <tr><td><b>TablePlus</b></td><td>シンプルで高速（有料版あり）</td><td>⭐⭐</td></tr>
+        <tr><td><b>DataGrip</b></td><td>JetBrains 製（有料）</td><td>⭐</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.8 データベース管理ツール</span><span>22</span></div>
+</section>
+
+<!-- ============ 5. 環境構築の確認 ============ -->
+<section class="sheet" id="ch5">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 5 章</div>
+    <h1>環境構築の確認</h1>
+    <p>すべてのソフトウェアが正しくインストールされているか確認します（ローカル開発方式の場合）。</p>
+    <div class="cols">
+      <h2>5.1 チェックリスト</h2>
+      <p>以下のコマンドをすべて実行して、エラーが出ないことを確認してください:</p>
+      <pre><span class="cm"># 1. Java確認</span>
+java -version
+<span class="cm"># 期待: java version "17.x.x"</span>
+
+<span class="cm"># 2. JAVA_HOME確認</span>
+echo $JAVA_HOME  <span class="cm"># macOS/Linux</span>
+echo %JAVA_HOME%  <span class="cm"># Windows (コマンドプロンプト)</span>
+
+<span class="cm"># 3. Maven確認</span>
+mvn -version
+<span class="cm"># 期待: Apache Maven 3.9.x</span>
+
+<span class="cm"># 4. Docker確認</span>
+docker --version
+
+<span class="cm"># 5. Docker Compose確認</span>
+docker compose version
+<span class="cm"># 期待: Docker Compose version v2.x.x</span>
+
+<span class="cm"># 6. Git確認</span>
+git --version</pre>
+      <h2>5.2 環境構築完了の目安</h2>
+      <ul>
+        <li>✅ すべてのコマンドが正常に実行される</li>
+        <li>✅ バージョン番号が表示される</li>
+        <li>✅ エラーメッセージが出ない</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 5 章 環境構築の確認</span><span>23</span></div>
+</section>
+
+<!-- ============ 6. プロジェクトのセットアップ (前半) ============ -->
+<section class="sheet" id="ch6">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章</div>
+    <h1>プロジェクトのセットアップ</h1>
+    <div class="cols">
+      <h2>6.1 リポジトリのクローン</h2>
+      <pre><span class="cm"># プロジェクトをクローン</span>
+git clone https://github.com/fukt-dev/learn-memo-app-traditional.git
+
+<span class="cm"># プロジェクトディレクトリに移動</span>
+cd learn-memo-app-traditional</pre>
+      <h2>6.2 IntelliJ IDEA でプロジェクトを開く</h2>
+      <ol>
+        <li>IntelliJ IDEA を起動</li>
+        <li>「Open」をクリック</li>
+        <li>クローンした <code>learn-memo-app-traditional</code> フォルダを選択</li>
+        <li>「Open as Project」をクリック</li>
+        <li>Maven プロジェクトとして認識されるのを待つ（右下に進行状況が表示される）</li>
+      </ol>
+      <h2>6.3 依存関係のダウンロード</h2>
+      <p>IntelliJ IDEA が自動的に Maven の依存関係をダウンロードします。手動で実行する場合:</p>
+      <pre>mvn clean install</pre>
+      <p><b>このコマンドの意味</b>:</p>
+      <ul>
+        <li><code>clean</code>: 以前のビルド結果を削除</li>
+        <li><code>install</code>: 依存関係をダウンロードして、プロジェクトをビルド（テストも実行される）</li>
+      </ul>
+      <h2>6.4 PostgreSQL コンテナの起動（Docker Compose 使用）</h2>
+      <p>プロジェクトルートで以下を実行:</p>
+      <pre><span class="cm"># PostgreSQLコンテナのみ起動</span>
+docker compose up -d postgres
+
+<span class="cm"># 起動確認（STATUS が healthy になるまで待つ）</span>
+docker compose ps
+
+<span class="cm"># ログ確認</span>
+docker compose logs postgres</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>24</span></div>
+</section>
+
+<!-- ============ 6. プロジェクトのセットアップ (後半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.5 アプリケーションの起動・6.6 ブラウザで確認・6.7 DB 確認</h1>
+    <div class="cols">
+      <h2>6.5 アプリケーションの起動</h2>
+      <pre><span class="cm"># Spring Bootアプリケーションを起動</span>
+mvn spring-boot:run
+
+<span class="cm"># 期待される出力:</span>
+<span class="cm"># Successfully applied 1 migration to schema "public"</span>
+<span class="cm"># Started MemoAppApplication in X.XXX seconds</span></pre>
+      <p><b>データベースマイグレーションについて</b>: 起動時に Flyway が <code>src/main/resources/db/migration/V1__Create_memos_table.sql</code> を<b>自動実行</b>し、<code>memos</code> テーブルが作成されます。</p>
+      <ul>
+        <li>マイグレーションは<b>アプリ起動時の自動実行のみ</b>です。本プロジェクトには flyway-maven-plugin を入れていないため、<code>mvn flyway:migrate</code> のような Maven コマンドは使えません</li>
+        <li>適用済みのマイグレーションは <code>flyway_schema_history</code> テーブルに記録され、再実行されません</li>
+        <li>サンプルデータの投入は行っていません（起動直後は「メモがありません」と表示されます。画面から作成してください）</li>
+      </ul>
+      <h2>6.6 ブラウザで確認</h2>
+      <p>ブラウザで以下にアクセス:</p>
+      <pre>http://localhost:8080/memos</pre>
+      <p>メモ一覧画面（「メモがありません」の表示）が出れば成功です！🎉 「新規作成」から最初のメモを作成してみましょう。</p>
+      <h2>6.7 データベースの中身を確認してみる（オプション）</h2>
+      <pre><span class="cm"># PostgreSQLコンテナに接続</span>
+docker compose exec postgres psql -U memoapp_user -d memoapp
+
+<span class="cm"># テーブル一覧を表示（memos と flyway_schema_history がある）</span>
+\dt
+
+<span class="cm"># メモの中身を確認</span>
+SELECT * FROM memos;
+
+<span class="cm"># 接続を終了</span>
+\q</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>25</span></div>
+</section>
+
+<!-- ============ 7. トラブルシューティング (前半) ============ -->
+<section class="sheet" id="ch7">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章</div>
+    <h1>トラブルシューティング</h1>
+    <div class="cols">
+      <h2>7.1 Java 関連</h2>
+      <h3>問題: <code>java: command not found</code></h3>
+      <p><b>原因</b>: 環境変数 PATH が正しく設定されていない。</p>
+      <p><b>解決方法</b>:</p>
+      <pre><span class="cm"># JAVA_HOMEが設定されているか確認</span>
+echo $JAVA_HOME  <span class="cm"># macOS/Linux</span>
+
+<span class="cm"># 設定されていない場合</span>
+export JAVA_HOME=/path/to/jdk-17
+export PATH=$JAVA_HOME/bin:$PATH</pre>
+      <h3>問題: <code>Unsupported class file major version XX</code></h3>
+      <p><b>原因</b>: プロジェクトが Java 17 を要求しているが、古いバージョンの Java を使っている。</p>
+      <p><b>解決方法</b>: JDK 17 をインストールして、JAVA_HOME を更新。</p>
+      <h2>7.2 Maven 関連</h2>
+      <h3>問題: <code>mvn: command not found</code></h3>
+      <p><b>原因</b>: Maven がインストールされていない、または PATH が通っていない。</p>
+      <p><b>解決方法</b>: IntelliJ IDEA 内蔵の Maven を使う（IntelliJ IDEA のターミナルから実行）。</p>
+      <h3>問題: 依存関係のダウンロードに失敗</h3>
+      <p><b>解決方法</b>:</p>
+      <pre><span class="cm"># キャッシュをクリアして再実行</span>
+mvn clean install -U</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>26</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章（続き）</div>
+    <h1>トラブルシューティング（Docker 関連）</h1>
+    <div class="cols">
+      <h2>7.3 Docker 関連</h2>
+      <h3>問題: <code>Cannot connect to the Docker daemon</code></h3>
+      <p><b>原因</b>: Docker が起動していない。</p>
+      <p><b>解決方法</b>: Windows/macOS は Docker Desktop を起動 ／ Linux は <code>sudo systemctl start docker</code>。</p>
+      <h3>問題: ポート 5432 が既に使用されている</h3>
+      <p><b>原因</b>: 別の PostgreSQL インスタンスが既に動いている。</p>
+      <p><b>解決方法</b>:</p>
+      <pre><span class="cm"># 既存のPostgreSQLを停止</span>
+sudo systemctl stop postgresql  <span class="cm"># Linux</span>
+brew services stop postgresql   <span class="cm"># macOS</span>
+
+<span class="cm"># または、別のポートを使う（docker-compose.ymlを編集）</span>
+ports:
+  - "5433:5432"  <span class="cm"># ホスト側を5433に変更</span></pre>
+      <p>※ モダン版（learn-memo-app-modern）の PostgreSQL コンテナはホスト側 5433 を使います。両方同時に動かす場合はポートが重ならないようにしてください。</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>27</span></div>
+</section>
+
+<!-- ============ 7. トラブルシューティング (後半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章（続き）</div>
+    <h1>7.4 PostgreSQL 関連・7.5 アプリケーション起動関連</h1>
+    <div class="cols">
+      <h2>7.4 PostgreSQL 関連</h2>
+      <h3>問題: <code>FATAL: password authentication failed</code></h3>
+      <p><b>原因</b>: パスワードが間違っている。</p>
+      <p><b>解決方法</b>: <code>application.yml</code> のパスワードと docker-compose.yml のパスワードを確認。</p>
+      <h3>問題: <code>connection refused</code></h3>
+      <p><b>原因</b>: PostgreSQL コンテナが起動していない。</p>
+      <p><b>解決方法</b>:</p>
+      <pre><span class="cm"># コンテナが起動しているか確認</span>
+docker compose ps
+
+<span class="cm"># 起動していない場合</span>
+docker compose up -d postgres</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>28</span></div>
+</section>
+
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章（続き）</div>
+    <h1>7.5 アプリケーション起動関連</h1>
+    <div class="cols">
+      <h2>7.5 アプリケーション起動関連</h2>
+      <h3>問題: <code>Port 8080 is already in use</code></h3>
+      <p><b>原因</b>: 別のアプリケーションがポート 8080 を使用している。</p>
+      <p><b>解決方法</b>:</p>
+      <pre><span class="cm"># 使用中のプロセスを確認</span>
+<span class="cm"># Windows</span>
+netstat -ano | findstr :8080
+
+<span class="cm"># macOS/Linux</span>
+lsof -i :8080
+
+<span class="cm"># プロセスを停止するか、別のポートを使う（application.ymlを編集）</span>
+server:
+  port: 8081</pre>
+      <h3>問題: <code>Flyway migration failed</code> / <code>Migration checksum mismatch</code></h3>
+      <p><b>原因</b>: checksum mismatch = 適用済みのマイグレーションファイルが書き換えられた（Flyway はファイル内容のチェックサムを記録しており、コメント変更でも不一致になります）／ その他 = マイグレーション SQL の文法エラーなど。</p>
+      <p><b>解決方法</b>:</p>
+      <pre><span class="cm"># 学習環境ではデータベースのリセットが最も確実（データは消えます）</span>
+docker compose down -v
+docker compose up -d postgres
+mvn spring-boot:run</pre>
+      <p><b>補足</b>: <code>mvn flyway:repair</code> のようなコマンドは flyway-maven-plugin を導入しているプロジェクト専用で、<b>本プロジェクトでは使えません</b>。マイグレーションの状態は <code>flyway_schema_history</code> テーブルを SQL で直接確認できます:</p>
+      <pre>docker compose exec postgres psql -U memoapp_user -d memoapp -c "SELECT version, description, checksum, success FROM flyway_schema_history;"</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>29</span></div>
+</section>
+
+<!-- ============ 付録 ============ -->
+<section class="sheet" id="appendix">
+  <div class="sheet-body">
+    <div class="chapter-tag">付録</div>
+    <h1>よく使うコマンド・エラー検索のコツ・参考リンク</h1>
+    <div class="cols">
+      <h2>A. よく使うコマンド一覧</h2>
+      <pre><span class="cm"># Maven</span>
+mvn clean                 <span class="cm"># ビルド結果をクリア</span>
+mvn compile               <span class="cm"># コンパイルのみ</span>
+mvn test                  <span class="cm"># テスト実行</span>
+mvn package               <span class="cm"># JARファイル作成</span>
+mvn spring-boot:run       <span class="cm"># アプリケーション起動（Flywayも自動実行）</span>
+
+<span class="cm"># Docker</span>
+docker ps                 <span class="cm"># 起動中のコンテナ一覧</span>
+docker compose up -d      <span class="cm"># コンテナ起動（バックグラウンド）</span>
+docker compose down       <span class="cm"># コンテナ停止・削除</span>
+docker compose down -v    <span class="cm"># コンテナ + データベースのデータも削除（完全リセット）</span>
+docker compose logs -f    <span class="cm"># ログ確認（リアルタイム）</span>
+
+<span class="cm"># Git</span>
+git status                <span class="cm"># 変更状態確認</span>
+git add .                 <span class="cm"># すべての変更をステージング</span>
+git commit -m "message"   <span class="cm"># コミット</span>
+git push                  <span class="cm"># リモートにプッシュ</span>
+git pull                  <span class="cm"># リモートから取得</span></pre>
+      <h2>B. エラーメッセージ検索のコツ</h2>
+      <ol>
+        <li><b>エラーメッセージをコピー</b></li>
+        <li><b>Google 検索</b>: エラーメッセージ + "Spring Boot" または "Maven"</li>
+        <li><b>Stack Overflow</b>: 英語のサイトだが、ほぼ同じ問題が見つかる</li>
+        <li><b>Qiita</b>: 日本語の技術記事サイト</li>
+      </ol>
+      <h2>C. 参考リンク</h2>
+      <ul>
+        <li>Spring Boot 公式ドキュメント: <a href="https://docs.spring.io/spring-boot/docs/current/reference/html/">https://docs.spring.io/spring-boot/docs/current/reference/html/</a></li>
+        <li>Maven 公式ガイド: <a href="https://maven.apache.org/guides/">https://maven.apache.org/guides/</a></li>
+        <li>PostgreSQL 公式ドキュメント: <a href="https://www.postgresql.org/docs/">https://www.postgresql.org/docs/</a></li>
+        <li>Docker 公式ドキュメント: <a href="https://docs.docker.com/">https://docs.docker.com/</a></li>
+        <li>MyBatis 公式ドキュメント: <a href="https://mybatis.org/mybatis-3/">https://mybatis.org/mybatis-3/</a></li>
+      </ul>
+      <div class="goal"><b>環境構築お疲れ様でした！🎉</b><br>次は <code>開発ガイド.md</code> を参照して、実際にコードを書いていきましょう。</div>
+    </div>
+  </div>
+  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>30</span></div>
+</section>
+
+</div><!-- /.paper-area -->
+
+</body>
+</html>
