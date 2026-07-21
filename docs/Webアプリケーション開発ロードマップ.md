@@ -28,7 +28,7 @@ Java/Kotlin + Spring Boot + JavaScript/React/Next.js を軸に、「従来構成
 ### 💻 作成するバージョン
 
 #### v1 (従来型) - リポジトリ: [learn-memo-app-traditional](https://github.com/fukt-dev/learn-memo-app-traditional)
-- **技術スタック**: Java + Spring Boot + Thymeleaf + JavaScript (jQuery)
+- **技術スタック**: Java + Spring Boot + Thymeleaf + JavaScript (Vanilla)
 - **アーキテクチャ**: サーバーサイドレンダリング（MVC）
 - **特徴**:
   - サーバー側で画面（HTML）を生成
@@ -88,16 +88,16 @@ Java/Kotlin + Spring Boot + JavaScript/React/Next.js を軸に、「従来構成
 ### 💻 作成するバージョン
 
 #### v1 (従来型) - リポジトリ: 未作成（予定）
-- **技術スタック**: Java + Spring Boot + Thymeleaf + JavaScript (jQuery)
+- **技術スタック**: Java + Spring Boot + Thymeleaf + JavaScript (Vanilla)
 - **アーキテクチャ**: サーバーサイドレンダリング（MVC）
 - **特徴**:
   - サーバー側で親子関係を含むデータを取得してHTMLを生成
   - フォーム送信による画面遷移
-  - jQueryによる動的なUI制御（タスクの追加・削除など）
+  - JavaScriptによる動的なUI制御（タスクの追加・削除など）
 - **学習ポイント**:
   - MyBatisでのJOIN処理
   - Thymeleafでのネストしたデータの表示
-  - jQueryによるDOM操作
+  - 素のJavaScript（Vanilla JS）によるDOM操作
   - 従来型での動的UIの限界を体感
 
 #### v2 (モダン型 - React) - リポジトリ: 未作成（予定）
@@ -179,16 +179,16 @@ Java/Kotlin + Spring Boot + JavaScript/React/Next.js を軸に、「従来構成
 ### 💻 作成するバージョン
 
 #### v1 (従来型) - リポジトリ: 未作成（予定）
-- **技術スタック**: Java + Spring Boot + Thymeleaf + JavaScript (jQuery)
+- **技術スタック**: Java + Spring Boot + Thymeleaf + JavaScript (Vanilla)
 - **アーキテクチャ**: サーバーサイドレンダリング（MVC）
 - **特徴**:
   - サーバー側で複雑なデータを結合してHTMLを生成
   - フォーム送信による画面遷移
-  - jQueryによる明細行の動的追加・削除
+  - JavaScriptによる明細行の動的追加・削除
   - サーバー側で金額計算やバリデーション
 - **学習ポイント**:
   - 従来型での複雑なフォーム処理の困難さを体感
-  - jQueryでのDOM操作の限界
+  - 手書きDOM操作の限界（モダン構成への移行動機）
   - サーバーサイドでのトランザクション管理
   - MyBatisでの複雑なJOIN処理
   - セッション管理の重要性
@@ -246,16 +246,16 @@ Java/Kotlin + Spring Boot + JavaScript/React/Next.js を軸に、「従来構成
 
 ```
 ステップ1：メモ帳アプリ (基礎)
-  ├─ v1: Java + Thymeleaf + jQuery
+  ├─ v1: Java + Thymeleaf + Vanilla JS
   └─ v2: Kotlin + React + TypeScript
          ↓
 ステップ2：タスク管理アプリ (中級)
-  ├─ v1: Java + Thymeleaf + jQuery
+  ├─ v1: Java + Thymeleaf + Vanilla JS
   ├─ v2: Kotlin + React + TypeScript  ← Reactをマスター
   └─ v3: Kotlin + Next.js + TypeScript ← Next.jsへステップアップ
          ↓
 ステップ3：伝票処理アプリ (上級)
-  ├─ v1: Java + Thymeleaf + jQuery
+  ├─ v1: Java + Thymeleaf + Vanilla JS
   └─ v2: Kotlin + Next.js + TypeScript ← 実務レベルの習得
 ```
 
@@ -315,7 +315,7 @@ Java → Kotlin
 ステップ1（メモ帳アプリ）が完成したので、次はステップ2（タスク管理アプリ）の開発に進みます。
 
 #### 開発予定順序
-1. **v1 (従来型)**: Java + Spring Boot + Thymeleaf + jQuery
+1. **v1 (従来型)**: Java + Spring Boot + Thymeleaf + Vanilla JS
 2. **v2 (モダン型 - React)**: Kotlin + Spring Boot + React + TypeScript
 3. **v3 (モダン型 - Next.js)**: Kotlin + Spring Boot + Next.js + TypeScript
 
