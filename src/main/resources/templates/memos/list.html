@@ -1,114 +1,45 @@
 <!DOCTYPE html>
 <!--
-    ============================================
-    メモ一覧画面
-    ============================================
+    メモ一覧画面（GET /memos）。登録済みメモの一覧・検索フォーム・新規作成ボタンを表示する。
+    3層でいうプレゼンテーション層の出力（サーバーサイドレンダリング）で、Controller が Model に
+    載せた ${memos} を、このテンプレートが HTML に変換する。
 
-    【この画面の役割】
-    登録されているメモの一覧を表示します
-
-    【URL】
-    GET /memos
-
-    【表示内容】
-    - メモの一覧（タイトル、作成日時）
-    - 新規作成ボタン
-    - 検索フォーム
-    - フラッシュメッセージ（登録・更新・削除の成功メッセージ）
+    学習ポイント:
+    - th:each / th:if / th:text / @{} リンク・自動エスケープなどの汎用解説 → docs/解説/Spring-MVCとThymeleaf.md
+    - モダン版との対比: この画面の役割は、モダン版では React の一覧ページが JSON を受けて描画する
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="ja">
-<!--
-    xmlns:th="http://www.thymeleaf.org"
-    → Thymeleafの機能を使うための宣言
--->
-
 <head>
-    <!-- ============================================
-         メタ情報
-         ============================================ -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>メモ一覧 - メモ帳アプリ</title>
-
-    <!-- CSS -->
     <link rel="stylesheet" th:href="@{/css/style.css}">
-    <!--
-        th:href="@{/css/style.css}"
-        Thymeleafのリンク記法
-        @{...} を使うことで、コンテキストパスが自動的に付加される
-    -->
 </head>
 
 <body>
-    <!-- ============================================
-         ヘッダー（共通フラグメント）
-         ============================================ -->
-    <!--
-        th:replace="~{fragments/parts :: siteHeader('list')}"
-        → この<header>要素が、fragments/parts.html の siteHeader フラグメントに
-          丸ごと置き換えられる（部品の定義は fragments/parts.html を参照）
-
-        引数 'list' により「一覧」のナビリンクに active クラスが付く
-    -->
+    <!-- 共通ヘッダー。引数 'list' で「一覧」ナビに active が付く（部品定義は fragments/parts.html） -->
     <header th:replace="~{fragments/parts :: siteHeader('list')}"></header>
 
-    <!-- ============================================
-         メインコンテンツ
-         ============================================ -->
     <main class="container">
-        <!-- ========================================
-             フラッシュメッセージ
-             ======================================== -->
         <!--
-            th:if="${successMessage}"
-            → successMessage が存在する場合のみ、この要素を表示
-
-            フラッシュメッセージは、Controllerでリダイレクト時に設定される:
-            redirectAttributes.addFlashAttribute("successMessage", "登録しました");
-
-            リロードすると消える（フラッシュスコープ）
+            フラッシュメッセージ。Controller が redirectAttributes.addFlashAttribute(...) で渡した
+            登録・更新・削除の成功メッセージを、リダイレクト後の1回だけ表示する（フラッシュスコープ。リロードで消える）
         -->
         <div th:if="${successMessage}" class="alert alert-success">
-            <!--
-                th:text="${successMessage}"
-                → successMessage の値を要素のテキストとして表示
-                HTMLエスケープが自動的に行われる
-            -->
             <span th:text="${successMessage}"></span>
         </div>
 
-        <!-- ========================================
-             ページタイトル
-             ======================================== -->
         <h1>メモ一覧</h1>
 
-        <!-- ========================================
-             検索フォーム
-             ======================================== -->
+        <!--
+            検索フォーム。送信先を専用の /memos/search ではなく、一覧と同じ /memos?keyword=... に統一している。
+            「一覧表示と検索を同一エンドポイントにまとめる」設計判断（空キーワードなら全件、を Service 側が吸収）。
+            検索はデータを変更しないので method="get"
+        -->
         <div class="search-box">
-            <!--
-                th:action="@{/memos}"
-                → フォームの送信先を /memos に設定（検索機能統合）
-
-                method="get"
-                → GETメソッドでリクエストを送信
-                検索はデータを変更しないのでGETを使用
-
-                【RESTful設計】
-                /memos/search ではなく /memos?keyword=xxx を使用
-                一覧表示と検索が同じエンドポイントで統一される
-            -->
             <form th:action="@{/memos}" method="get">
                 <div class="form-group">
-                    <!--
-                        name="keyword"
-                        → このinputの値が、クエリパラメータ keyword として送信される
-                        例: /memos/search?keyword=買い物
-
-                        th:value="${keyword}"
-                        → 検索後、入力したキーワードを表示したままにする
-                        Controllerで model.addAttribute("keyword", keyword) していれば設定される
-                    -->
+                    <!-- th:value で検索後もキーワードを入力欄に残す（Controller が model に keyword を戻している前提） -->
                     <input
                         type="text"
                         name="keyword"
@@ -121,28 +52,11 @@
             </form>
         </div>
 
-        <!-- ========================================
-             新規作成ボタン
-             ======================================== -->
         <div class="action-bar">
-            <!--
-                th:href="@{/memos/new}"
-                → /memos/new へのリンク
-            -->
             <a th:href="@{/memos/new}" class="btn btn-success">新規作成</a>
         </div>
 
-        <!-- ========================================
-             メモ一覧
-             ======================================== -->
-        <!--
-            th:if="${memos.isEmpty()}"
-            → memos が空の場合のみ表示
-
-            ${memos.isEmpty()}
-            → memosリストが空かどうかを判定
-            Java の List.isEmpty() メソッドを呼び出している
-        -->
+        <!-- メモが0件のときだけ表示（下の th:unless はこの否定） -->
         <div th:if="${memos.isEmpty()}" class="empty-state">
             <p>メモがありません</p>
             <p>
@@ -150,130 +64,46 @@
             </p>
         </div>
 
-        <!--
-            th:unless="${memos.isEmpty()}"
-            → memos が空でない場合のみ表示
-
-            th:unless は th:if の逆（否定）
-        -->
         <div th:unless="${memos.isEmpty()}" class="memo-list">
-            <!--
-                th:each="memo : ${memos}"
-                → memosリストの各要素について繰り返し
-
-                【動作】
-                for (Memo memo : memos) {
-                    // この<div>ブロックを繰り返す
-                }
-
-                のようなイメージ
-
-                【変数】
-                memo → 現在の要素（1つのメモ）
-                ${memos} → リスト全体
-
-                【ステータス変数（オプション）】
-                th:each="memo, iterStat : ${memos}"
-                iterStat.index → 0始まりのインデックス
-                iterStat.count → 1始まりの個数
-                iterStat.first → 最初の要素かどうか
-                iterStat.last → 最後の要素かどうか
-            -->
+            <!-- ${memos} の各要素を memo として繰り返す。"memo, iterStat : ${memos}" とすれば index/count/first/last も取れる -->
             <div th:each="memo : ${memos}" class="memo-item">
-                <!--
-                    メモアイテムの内容
-                -->
                 <div class="memo-header">
                     <h2 class="memo-title">
-                        <!--
-                            th:href="@{/memos/{id}(id=${memo.id})}"
-                            → URLパスパラメータを使ったリンク
-
-                            【動作】
-                            /memos/{id} の {id} の部分が memo.id の値に置き換わる
-                            例: memo.id = 1 の場合 → /memos/1
-
-                            (id=${memo.id})
-                            → パスパラメータの値を指定
-
-                            【複数のパラメータ】
-                            @{/memos/{id}/edit(id=${memo.id}, mode='edit')}
-                            → /memos/1/edit?mode=edit
-                        -->
                         <a th:href="@{/memos/{id}(id=${memo.id})}" th:text="${memo.title}">
                             メモのタイトル
                         </a>
-                        <!--
-                            th:text="${memo.title}"
-                            → memo.getTitle() の値をテキストとして表示
-
-                            "メモのタイトル" はデフォルト値（HTMLをそのまま開いた時に表示される）
-                            Thymeleafで処理されると、th:text の値に置き換わる
-                        -->
+                        <!-- 「メモのタイトル」は Natural Templating 用のダミー。実行時は th:text の値に置き換わる -->
                     </h2>
 
                     <div class="memo-meta">
-                        <!--
-                            作成日時の表示
-
-                            ${memo.createdAtFormatted}
-                            → MemoDto の createdAtFormatted フィールド
-                            MemoDtoで既にフォーマット済み（"2025年11月17日 10:30"）
-                        -->
+                        <!-- createdAtFormatted は MemoDto 側で整形済みの文字列（"2025年11月17日 10:30"） -->
                         <span class="memo-date" th:text="${memo.createdAtFormatted}">
                             2025年11月17日 10:30
                         </span>
                     </div>
                 </div>
 
-                <!--
-                    メモの本文プレビュー
-                -->
                 <div class="memo-content-preview">
-                    <!--
-                        th:text="${#strings.abbreviate(memo.content, 100)}"
-                        → メモの本文を100文字に省略して表示
-
-                        #strings: Thymeleafの文字列ユーティリティ
-                        #strings.abbreviate(文字列, 最大長)
-                        → 文字列を指定した長さに省略（末尾に"..."が付く）
-
-                        例:
-                        元の文字列: "これは長い文章です。100文字を超える場合は省略されます。..."
-                        結果: "これは長い文章です。100文字を超える場合は省略..."
-                    -->
+                    <!-- #strings.abbreviate(文字列, 最大長): 一覧では本文を100文字に省略して表示（末尾に "..."） -->
                     <p th:text="${#strings.abbreviate(memo.content, 100)}">
                         メモの内容がここに表示されます...
                     </p>
                 </div>
 
-                <!--
-                    アクションボタン
-                -->
                 <div class="memo-actions">
-                    <!-- 詳細表示リンク -->
                     <a th:href="@{/memos/{id}(id=${memo.id})}" class="btn btn-sm btn-info">
                         詳細
                     </a>
-
-                    <!-- 編集リンク -->
                     <a th:href="@{/memos/{id}/edit(id=${memo.id})}" class="btn btn-sm btn-primary">
                         編集
                     </a>
 
-                    <!-- 削除フォーム -->
                     <!--
-                        削除はPOSTメソッドで送信する
-                        なぜか: GETは安全な操作のみ（データを変更しない）
-                        削除はデータを変更するのでPOSTを使う
-                    -->
-                    <!--
+                        削除は「データを変更する操作」なので GET リンクではなく POST フォームにする。
                         削除前の確認ダイアログは script.js の initDeleteConfirmation() が
-                        表示する（action に "/delete" を含むフォームの submit を監視）
-
-                        【注意】
-                        ここに onclick="return confirm(...)" を書いてはいけない。
-                        JS側のリスナーと二重になり、ダイアログが2回表示されてしまう
+                        action に "/delete" を含むフォームの submit を監視して出す。
+                        【落とし穴】ここに onclick="return confirm(...)" を足すと JS 側のリスナーと二重になり、
+                        確認ダイアログが2回表示される。書いてはいけない
                     -->
                     <form th:action="@{/memos/{id}/delete(id=${memo.id})}" method="post" style="display: inline;">
                         <button type="submit" class="btn btn-sm btn-danger">
@@ -285,66 +115,9 @@
         </div>
     </main>
 
-    <!-- ============================================
-         フッター（共通フラグメント）
-         ============================================ -->
+    <!-- 共通フッター（部品定義は fragments/parts.html） -->
     <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
-    <!-- JavaScript -->
     <script th:src="@{/js/script.js}"></script>
 </body>
 </html>
-
-<!--
-    ============================================
-    Controllerとの連携
-    ============================================
-
-    MemoController.java:
-
-    @GetMapping("")
-    public String list(Model model) {
-        List<MemoDto> memos = memoService.findAll();
-        model.addAttribute("memos", memos);  ← この値が ${memos} として参照できる
-        return "memos/list";  ← このHTMLファイルを表示
-    }
-
-    ============================================
-    データの流れ
-    ============================================
-
-    1. ユーザーがブラウザで /memos にアクセス
-
-    2. MemoController.list() が呼ばれる
-
-    3. ServiceからList<MemoDto>を取得
-
-    4. model.addAttribute("memos", memos) で Modelに設定
-
-    5. このHTMLテンプレートがレンダリングされる
-
-    6. ${memos} が実際のデータに置き換わる
-
-    7. 完成したHTMLがブラウザに返される
-
-    ============================================
-    Thymeleafのデバッグ
-    ============================================
-
-    【1. ログで確認】
-    application.yml:
-    logging:
-      level:
-        org.thymeleaf: DEBUG
-
-    → Thymeleafの処理内容がログに出力される
-
-    【2. ブラウザの開発者ツール】
-    - F12 → Elements → レンダリング後のHTMLを確認
-    - th:if が false の場合、要素が存在しない
-    - th:text の値が正しく設定されているか確認
-
-    【3. エラーページ】
-    - 変数が存在しない場合、エラーページが表示される
-    - エラーメッセージで原因を確認
--->

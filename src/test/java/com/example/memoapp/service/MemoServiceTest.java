@@ -25,56 +25,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * MemoService の単体テスト
+ * MemoService の単体テスト(JUnit 5 + Mockito)。
  *
- * 【このテストの位置付け】
- * 3層アーキテクチャの「ビジネスロジック層」だけを切り出して検証する。
- * データアクセス層(MemoMapper)はモック(偽物)に差し替えるため、
- * データベースなしで高速に実行できる。
+ * 3層アーキテクチャの「ビジネスロジック層」だけを切り出し、依存する MemoMapper はモックに
+ * 差し替えて DB なしで高速に検証する。正常系だけでなく、存在しない ID の例外や
+ * 並行削除の隙間(更新件数0)も、仕様の一部として固定する。
  *
- * 【学習ポイント】
- * - Mockito によるモックの作り方と検証方法
- * - 「例外がスローされること」自体をテストする書き方
- * - Arrange(準備)→ Act(実行)→ Assert(検証)の3段構成
- */
-
-/**
- * @ExtendWith(MockitoExtension.class)
- *
- * JUnit 5 に Mockito の機能を組み込む宣言。
- * これにより @Mock / @InjectMocks が動作する。
- *
- * 【なぜ @SpringBootTest を使わないのか】
- * @SpringBootTest はアプリ全体(DI コンテナ・DB 接続まで)を起動するため遅い。
- * Service 単体のロジック検証には Spring は不要で、
- * Mockito だけで済ませる方が圧倒的に速い(ミリ秒単位で完了する)
+ * Mockito(@Mock / @InjectMocks / when / verify / ArgumentCaptor)と
+ * Given-When-Then の汎用解説 → docs/解説/テスト.md
  */
 @ExtendWith(MockitoExtension.class)
 class MemoServiceTest {
 
-    /**
-     * @Mock
-     * MemoMapper の「モック(偽物)」を生成する。
-     *
-     * 【モックとは】
-     * 本物の代わりに使う、動作を自由にプログラムできる偽物オブジェクト。
-     * - when(...).thenReturn(...) で「呼ばれたらこう返す」を定義できる
-     * - verify(...) で「呼ばれたか・何回呼ばれたか」を検証できる
-     * 本物の MemoMapper は DB が必要だが、モックなら不要
-     */
+    /** MemoMapper のモック(偽物)。when(...).thenReturn(...) で戻り値を仕込み、verify で呼ばれ方を検証する */
     @Mock
     private MemoMapper memoMapper;
 
     /**
-     * @InjectMocks
-     * テスト対象の MemoService を生成し、
-     * 上の @Mock (memoMapper) をコンストラクタ経由で注入する。
-     *
-     * MemoService が @RequiredArgsConstructor による
-     * コンストラクタインジェクションを採用しているため、
-     * Mockito が「MemoMapper を受け取るコンストラクタ」を見つけて注入できる。
-     * (フィールドインジェクションだとテストでの差し替えが難しくなる。
-     *  「コンストラクタインジェクションはテストしやすい」の実例)
+     * テスト対象の MemoService を生成し、上の @Mock をコンストラクタ経由で注入する。
+     * MemoService が @RequiredArgsConstructor のコンストラクタ注入を採るため、Mockito が
+     * 「MemoMapper を受け取るコンストラクタ」を見つけて差し込める。
+     * (フィールドインジェクションだと差し替えにくい ＝「コンストラクタ注入はテストしやすい」の実例)
      */
     @InjectMocks
     private MemoService memoService;
@@ -93,11 +64,7 @@ class MemoServiceTest {
         return memo;
     }
 
-    /*
-     * @Nested + @DisplayName
-     * メソッドごとにテストをグループ化し、日本語の説明を付ける。
-     * テスト結果のレポートが「仕様書」のように読めるようになる
-     */
+    // @Nested + @DisplayName でメソッド単位にグループ化し、レポートを「仕様書」のように読ませる
     @Nested
     @DisplayName("findById: ID指定で1件取得")
     class FindById {

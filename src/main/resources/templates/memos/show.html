@@ -1,42 +1,35 @@
 <!DOCTYPE html>
 <!--
-    ============================================
-    メモ詳細画面
-    ============================================
+    メモ詳細画面（GET /memos/{id}）。1件のメモの全内容と、編集・削除・一覧へのリンクを表示する。
+    表示専用のためフォーム（th:object）はなく、Model の ${memo} を各 th:text で描画するだけ。
 
-    【この画面の役割】
-    1つのメモの詳細情報を表示します
-
-    【URL】
-    GET /memos/{id}
+    学習ポイント:
+    - th:text / @{} リンク・自動エスケープなどの汎用解説 → docs/解説/Spring-MVCとThymeleaf.md
+    - 本文の改行保持は th:utext ではなく CSS で行う → 本文欄のコメント参照
+    - モダン版との対比: この詳細表示は、モダン版では React が1件分の JSON を受けて描画する
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- ページタイトルにメモのタイトルを差し込む（+ は文字列連結） -->
     <title th:text="${memo.title} + ' - メモ帳アプリ'">メモ詳細 - メモ帳アプリ</title>
     <link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 
 <body>
-    <!--
-        共通ヘッダー（部品の定義は fragments/parts.html を参照）
-        引数 null = どのナビリンクもハイライトしない
-    -->
+    <!-- 共通ヘッダー。引数 null でどのナビもハイライトしない（部品定義は fragments/parts.html） -->
     <header th:replace="~{fragments/parts :: siteHeader(null)}"></header>
 
     <main class="container">
-        <!-- フラッシュメッセージ -->
+        <!-- フラッシュメッセージ（更新成功時などに詳細へリダイレクトして表示） -->
         <div th:if="${successMessage}" class="alert alert-success">
             <span th:text="${successMessage}"></span>
         </div>
 
-        <!-- メモ詳細 -->
         <article class="memo-detail">
-            <!-- タイトル -->
             <h1 class="memo-title" th:text="${memo.title}">メモのタイトル</h1>
 
-            <!-- メタ情報 -->
             <div class="memo-meta">
                 <p>
                     <strong>作成日時:</strong>
@@ -48,13 +41,10 @@
                 </p>
             </div>
 
-            <!-- 本文 -->
             <div class="memo-content">
                 <!--
-                    th:text では改行が保持されない
-                    代わりに、white-space: pre-wrap をCSSで指定して改行を保持する
-
-                    または、th:utext を使うこともできるが、XSSの危険があるので注意
+                    th:text は自動エスケープするため、本文中の改行はそのままでは表示に反映されない。
+                    そこで th:utext（エスケープを外す＝XSS の危険）ではなく、CSS の white-space: pre-wrap で改行を残す
                 -->
                 <p th:text="${memo.content}" style="white-space: pre-wrap;">
                     メモの本文がここに表示されます。
@@ -62,17 +52,14 @@
                 </p>
             </div>
 
-            <!-- アクションボタン -->
             <div class="memo-actions">
-                <!-- 編集 -->
                 <a th:href="@{/memos/{id}/edit(id=${memo.id})}" class="btn btn-primary">
                     編集
                 </a>
 
-                <!-- 削除 -->
                 <!--
-                    確認ダイアログは script.js の initDeleteConfirmation() が表示する
-                    （onclick に書くとJS側と二重になりダイアログが2回出る。list.html の注意書き参照）
+                    削除は POST フォーム。確認ダイアログは script.js が出すため onclick は書かない
+                    （onclick に書くと JS 側と二重になりダイアログが2回出る。list.html の【落とし穴】参照）
                 -->
                 <form th:action="@{/memos/{id}/delete(id=${memo.id})}"
                       method="post"
@@ -83,7 +70,6 @@
                     </button>
                 </form>
 
-                <!-- 一覧に戻る -->
                 <a th:href="@{/memos}" class="btn btn-secondary">
                     一覧に戻る
                 </a>
@@ -91,7 +77,7 @@
         </article>
     </main>
 
-    <!-- 共通フッター（部品の定義は fragments/parts.html を参照） -->
+    <!-- 共通フッター（部品定義は fragments/parts.html） -->
     <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
     <script th:src="@{/js/script.js}"></script>

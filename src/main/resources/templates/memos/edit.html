@@ -1,21 +1,13 @@
 <!DOCTYPE html>
 <!--
-    ============================================
-    メモ編集画面
-    ============================================
+    メモ編集画面（GET /memos/{id}/edit でフォーム表示 → POST /memos/{id}/update で更新）。
+    new.html とほぼ同じ構造で、違いは (1) th:object の memoDto に既存データが入っている
+    (2) 送信先が /memos/{id}/update の2点。
 
-    【この画面の役割】
-    既存のメモを編集するためのフォームを表示します
-
-    【URL】
-    GET /memos/{id}/edit
-
-    【POST先】
-    POST /memos/{id}/update
-
-    【new.htmlとの違い】
-    - フォームの初期値に既存のメモのデータが入っている
-    - 送信先が /memos/{id}/update
+    学習ポイント:
+    - th:field / th:errors と検証エラー表示 → docs/解説/Bean-Validation.md
+    - id や日時をフォームに載せない設計判断 → ページ末尾【なぜ id をフォームで送らないか】コメント参照
+    - モダン版との対比: この画面が担う更新を、モダン版では React のフォームが JSON で送って行う
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
@@ -26,47 +18,30 @@
 </head>
 
 <body>
-    <!--
-        共通ヘッダー（部品の定義は fragments/parts.html を参照）
-        引数 null = どのナビリンクもハイライトしない
-    -->
+    <!-- 共通ヘッダー。引数 null でどのナビもハイライトしない（部品定義は fragments/parts.html） -->
     <header th:replace="~{fragments/parts :: siteHeader(null)}"></header>
 
     <main class="container">
         <h1>メモ編集</h1>
 
         <!--
-            編集フォーム
-
-            th:action="@{/memos/{id}/update(id=${memoDto.id})}"
-            → /memos/1/update のようなURLに送信
-            {id} が ${memoDto.id} の値に置き換わる
-
-            th:object="${memoDto}"
-            → Controllerで取得した既存のメモデータがバインドされている
-            model.addAttribute("memoDto", memo)
+            th:action の {id} が ${memoDto.id} に置き換わり /memos/1/update などになる。
+            th:object の memoDto には、Controller が findById で取得した既存データが入っている
         -->
         <form th:action="@{/memos/{id}/update(id=${memoDto.id})}"
               th:object="${memoDto}"
               method="post"
               class="memo-form">
 
-            <!-- タイトル入力 -->
             <div class="form-group">
                 <label for="title">タイトル</label>
-                <!--
-                    th:field="*{title}"
-                    → memoDto.title の値が初期値として表示される
-
-                    編集画面では、既存のデータが入っている状態
-                -->
+                <!-- 編集画面では th:field="*{title}" に既存のタイトルが初期値として入る -->
                 <input type="text"
                        th:field="*{title}"
                        class="form-control"
                        th:classappend="${#fields.hasErrors('title')} ? 'is-invalid' : ''"
                        placeholder="タイトルを入力してください">
 
-                <!-- エラーメッセージ -->
                 <span th:if="${#fields.hasErrors('title')}"
                       th:errors="*{title}"
                       class="error-message">
@@ -74,22 +49,14 @@
                 </span>
             </div>
 
-            <!-- 本文入力 -->
             <div class="form-group">
                 <label for="content">本文</label>
-                <!--
-                    <textarea> の場合:
-                    th:field="*{content}" により、
-                    <textarea>既存の本文がここに入る</textarea>
-                    のようにレンダリングされる
-                -->
                 <textarea th:field="*{content}"
                           class="form-control"
                           th:classappend="${#fields.hasErrors('content')} ? 'is-invalid' : ''"
                           rows="10"
                           placeholder="本文を入力してください"></textarea>
 
-                <!-- エラーメッセージ -->
                 <span th:if="${#fields.hasErrors('content')}"
                       th:errors="*{content}"
                       class="error-message">
@@ -97,10 +64,11 @@
                 </span>
             </div>
 
-            <!-- メタ情報の表示（編集不可） -->
             <!--
-                作成日時や更新日時は編集できないようにする
-                表示のみ
+                作成日時・更新日時は表示のみ（編集不可）。DB 側が管理する値で、フォームからは送らない。
+                【落とし穴】title / content 以外はフォームに含めないため、検証エラーで編集画面に戻ると
+                この2つの日時欄が空になる。MemoController.update() が DB から取り直して再設定している
+                （回帰テスト: MemoControllerTest#refillsTimestamps_whenValidationFails）
             -->
             <div class="form-info">
                 <p>
@@ -113,13 +81,9 @@
                 </p>
             </div>
 
-            <!-- ボタン -->
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">更新</button>
-                <!--
-                    th:href="@{/memos/{id}(id=${memoDto.id})}"
-                    → 詳細画面に戻る
-                -->
+                <!-- キャンセルは詳細画面へ戻るリンク -->
                 <a th:href="@{/memos/{id}(id=${memoDto.id})}" class="btn btn-secondary">
                     キャンセル
                 </a>
@@ -127,7 +91,7 @@
         </form>
     </main>
 
-    <!-- 共通フッター（部品の定義は fragments/parts.html を参照） -->
+    <!-- 共通フッター（部品定義は fragments/parts.html） -->
     <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
     <script th:src="@{/js/script.js}"></script>
@@ -135,80 +99,9 @@
 </html>
 
 <!--
-    ============================================
-    編集の流れ
-    ============================================
-
-    1. ユーザーが一覧画面で「編集」をクリック
-       → GET /memos/1/edit
-
-    2. MemoController.edit() が呼ばれる
-       @GetMapping("/{id}/edit")
-       public String edit(@PathVariable Long id, Model model) {
-           MemoDto memo = memoService.findById(id);
-           model.addAttribute("memoDto", memo);  ← 既存データを取得
-           return "memos/edit";
-       }
-
-    3. この画面が表示される
-       フォームには既存のデータが入っている
-
-    4. ユーザーがデータを編集して「更新」をクリック
-       → POST /memos/1/update
-
-    5. MemoController.update() が呼ばれる
-       @PostMapping("/{id}/update")
-       public String update(
-               @PathVariable Long id,
-               @Valid MemoDto memoDto,
-               BindingResult result) {
-           if (result.hasErrors()) {
-               return "memos/edit";  ← エラー時は編集画面に戻る
-           }
-           memoDto.setId(id);  ← IDをセット
-           memoService.update(memoDto);
-           return "redirect:/memos/" + id;  ← 詳細画面にリダイレクト
-       }
-
-    ============================================
-    なぜIDをフォームで送らないのか
-    ============================================
-
-    セキュリティ上の理由:
-    - フォームでIDを送ると、改ざんされる可能性がある
-    - ユーザーが別のメモのIDに変更して送信できてしまう
-
-    例:
-    <input type="hidden" name="id" value="1">
-    → ユーザーがvalue="999"に変更して送信
-    → 別のメモが更新されてしまう！
-
-    解決策:
-    - IDはURLから取得する（@PathVariable）
-    - フォームにはtitleとcontentのみ含める
-    - Controllerで @PathVariable Long id として受け取る
-    - memoDto.setId(id) でIDを設定する
-
-    ============================================
-    バリデーションエラー時の動作
-    ============================================
-
-    1. ユーザーが空のタイトルで「更新」をクリック
-
-    2. Controllerでバリデーション実行
-       result.hasErrors() == true
-
-    3. 編集画面に戻る
-       return "memos/edit"
-
-    4. この画面が再表示される
-       - ユーザーが入力した内容は保持されている
-       - エラーメッセージが表示される
-       - 作成日時・更新日時は、フォームから送信されない（hiddenにしていない）ため、
-         MemoController.update() がDBから取り直して再設定している
-         （再設定しないと日時欄が空で表示されてしまう）
-
-    重要: IDも同様にフォームからは送信されないため、
-         Controller が memoDto.setId(id) で再設定している
-         （設定しないとフォームのaction URLが生成できずエラーになる）
+    【なぜ id をフォームで送らないか】
+    id を <input type="hidden" name="id"> でフォームに載せると、ユーザーが value を別メモの id に
+    書き換えて送信でき、他人のメモを更新できてしまう。そこで id は URL パス（@PathVariable）から取り、
+    フォームには title / content だけを含める。Controller は memoDto.setId(id) で URL の id を再設定する
+    （再設定しないと、次回の action URL 生成に使う memoDto.id が無くエラーになる）
 -->

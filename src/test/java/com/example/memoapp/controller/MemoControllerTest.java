@@ -25,51 +25,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 /**
- * MemoController のスライステスト(@WebMvcTest)
+ * MemoController のスライステスト(@WebMvcTest)。
  *
- * 【このテストの位置付け】
- * プレゼンテーション層(Controller + 例外ハンドラ)だけを起動して、
- * 「HTTPリクエスト → ステータスコード・ビュー・リダイレクト」の対応を検証する。
- * Service はモックに差し替えるため、DBは不要。
+ * プレゼンテーション層(Controller + 例外ハンドラ)だけを起動し、
+ * 「HTTPリクエスト → ステータス・ビュー名・リダイレクト・モデル」の対応を検証する。
+ * @Service や @Mapper はコンテナに登録されないため、依存する MemoService は
+ * @MockitoBean で偽物を差し込む。DB は不要で、@SpringBootTest より軽く速い。
  *
- * 【学習ポイント】
- * - @WebMvcTest による「スライステスト」(アプリの一部だけ起動する)
- * - MockMvc での擬似HTTPリクエストの送り方
- * - 例外 → HTTPステータスの変換(GlobalExceptionHandler)の回帰テスト
- */
-
-/**
- * @WebMvcTest(MemoController.class)
- *
- * Spring MVC 関連のBean(指定したController・@ControllerAdvice・
- * Thymeleafの設定など)だけを起動する。
- * @Service や @Mapper はコンテナに登録されないため、
- * 依存する MemoService は @MockitoBean で偽物を差し込む。
- *
- * 【@SpringBootTest との違い】
- * - @SpringBootTest: アプリ全体を起動(遅い・DB接続も必要になりがち)
- * - @WebMvcTest: Web層のみ起動(速い・HTTP層の検証に最適)
+ * @WebMvcTest / MockMvc / Given-When-Then の汎用解説 → docs/解説/テスト.md
+ * このクラス固有の見どころは、404・PRG・バリデーション戻しの回帰テスト(各メソッドのコメント参照)。
  */
 @WebMvcTest(MemoController.class)
 class MemoControllerTest {
 
-    /**
-     * MockMvc
-     * サーバーを実際に起動せずに、DispatcherServlet へ
-     * 擬似的なHTTPリクエストを送り込むテスト用の道具。
-     * ステータスコード・ビュー名・モデルの中身などを検証できる
-     */
+    /** サーバーを起動せず DispatcherServlet に擬似HTTPリクエストを送る道具(詳細 → docs/解説/テスト.md) */
     @Autowired
     private MockMvc mockMvc;
 
     /**
-     * @MockitoBean
-     * DIコンテナ内の MemoService をMockitoのモックに置き換える。
+     * DIコンテナ内の MemoService を Mockito のモックに置き換える。
      *
      * 【落とし穴: @MockBean は廃止予定】
-     * Spring Boot 3.4 以降、従来の @MockBean は非推奨となり、
-     * Spring Framework 本体が提供する @MockitoBean に置き換えられた
-     * (パッケージも org.springframework.test.context.bean.override.mockito に変更)。
+     * Spring Boot 3.4 以降、従来の @MockBean は非推奨となり、Spring Framework 本体が提供する
+     * @MockitoBean(パッケージ org.springframework.test.context.bean.override.mockito)に置き換えられた。
      * 古い記事のサンプルコードをコピーすると非推奨警告が出るので注意
      */
     @MockitoBean

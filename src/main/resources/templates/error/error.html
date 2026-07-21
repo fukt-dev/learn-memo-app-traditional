@@ -1,19 +1,11 @@
 <!DOCTYPE html>
 <!--
-    ============================================
-    エラー画面
-    ============================================
+    共通エラー画面。GlobalExceptionHandler が例外を捕捉したときに表示される（ビュー名 error/error）。
+    Model の ${errorMessage} に例外メッセージが入る。404・400・500 いずれもこの1画面を使い回す。
 
-    【この画面の役割】
-    アプリケーションでエラーが発生した場合に表示されます
-
-    【表示されるタイミング】
-    - GlobalExceptionHandler で例外がキャッチされた場合
-    - メモが見つからない場合（IllegalArgumentException）
-    - システムエラーが発生した場合
-
-    【エラーメッセージ】
-    Controllerで model.addAttribute("errorMessage", "...") で設定
+    学習ポイント:
+    - どの例外がどのステータスでここに来るか（ハンドラの優先順位）→ docs/解説/例外処理とエラーページ.md
+    - モダン版との対比: 従来型はこのエラー画面（HTML）を返し、モダン版はエラー JSON を返して React が表示する
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="ja">
 <head>
@@ -24,15 +16,11 @@
 </head>
 
 <body>
-    <!--
-        共通ヘッダー（部品の定義は fragments/parts.html を参照）
-        引数 null = どのナビリンクもハイライトしない
-    -->
+    <!-- 共通ヘッダー。引数 null でどのナビもハイライトしない（部品定義は fragments/parts.html） -->
     <header th:replace="~{fragments/parts :: siteHeader(null)}"></header>
 
     <main class="container">
         <div class="error-page">
-            <!-- エラーアイコン -->
             <div class="error-icon">
                 <svg width="100" height="100" viewBox="0 0 100 100" fill="none">
                     <circle cx="50" cy="50" r="45" stroke="#dc3545" stroke-width="4"/>
@@ -40,32 +28,21 @@
                 </svg>
             </div>
 
-            <!-- エラータイトル -->
             <h1>エラーが発生しました</h1>
 
-            <!-- エラーメッセージ -->
-            <!--
-                th:text="${errorMessage}"
-                → GlobalExceptionHandlerで設定されたエラーメッセージを表示
-
-                例:
-                - "メモが見つかりません: id=999"
-                - "システムエラーが発生しました。時間をおいて再度お試しください。"
-            -->
+            <!-- errorMessage は GlobalExceptionHandler が設定（例: "メモが見つかりません: id=999"） -->
             <div class="error-message-box">
                 <p th:text="${errorMessage}">
                     エラーの詳細がここに表示されます。
                 </p>
             </div>
 
-            <!-- アクションボタン -->
             <div class="error-actions">
-                <!-- トップページに戻る -->
                 <a th:href="@{/memos}" class="btn btn-primary">
                     トップページに戻る
                 </a>
 
-                <!-- ブラウザバック -->
+                <!-- ブラウザ履歴を1つ戻る（サーバーを介さないクライアント側だけの操作） -->
                 <button onclick="history.back()" class="btn btn-secondary">
                     前のページに戻る
                 </button>
@@ -73,38 +50,9 @@
         </div>
     </main>
 
-    <!-- 共通フッター（部品の定義は fragments/parts.html を参照） -->
+    <!-- 共通フッター（部品定義は fragments/parts.html） -->
     <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
     <script th:src="@{/js/script.js}"></script>
 </body>
 </html>
-
-<!--
-    ============================================
-    その他のエラーページ（オプション）
-    ============================================
-
-    Spring Bootは、HTTPステータスコードに応じて、
-    特定のエラーページを表示できます
-
-    【404エラーページ】
-    src/main/resources/templates/error/404.html
-
-    ページが見つからない場合に表示される
-
-    【500エラーページ】
-    src/main/resources/templates/error/500.html
-
-    サーバー内部エラーの場合に表示される
-
-    【403エラーページ】
-    src/main/resources/templates/error/403.html
-
-    アクセス権限がない場合に表示される
-
-    【汎用エラーページ】
-    src/main/resources/templates/error/error.html（このファイル）
-
-    上記の特定のエラーページがない場合に表示される
--->
