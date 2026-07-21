@@ -14,438 +14,136 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.List;
 
 /**
- * ============================================
- * MemoControllerクラス（プレゼンテーション層）
- * ============================================
+ * メモ機能の Controller（プレゼンテーション層）。
  *
- * 【このクラスの役割】
- * HTTPリクエストを受け取り、適切な処理を行い、レスポンスを返します
+ * 3 層アーキテクチャの入口。HTTP リクエストを受け取り、入力検証と Service 呼び出しを行い、
+ * ビュー名（Thymeleaf テンプレート）を返す。ビジネスロジックや SQL はここには書かず、
+ * Service / Mapper に委ねる。
  *
- * 【プレゼンテーション層とは】
- * アプリケーションの「窓口」に相当する層
- * - HTTPリクエストの受け取り
- * - リクエストパラメータの取得
- * - バリデーション
- * - Serviceの呼び出し
- * - レスポンスの返却（画面表示、リダイレクト）
+ * 学習ポイント:
+ * - リクエスト処理の流れ・マッピング・Model・ビュー解決・PRG パターン → docs/解説/Spring-MVCとThymeleaf.md
+ * - @Valid と BindingResult による入力検証の流れ → docs/解説/Bean-Validation.md
  *
- * 【3層アーキテクチャにおける位置付け】
- *
- * ┌─────────────────────────┐
- * │ ブラウザ（ユーザー）    │
- * └─────────────────────────┘
- *           ↓↑ HTTPリクエスト/レスポンス
- * ┌─────────────────────────┐
- * │ プレゼンテーション層    │ ← Controller（このクラス）
- * └─────────────────────────┘
- *           ↓↑
- * ┌─────────────────────────┐
- * │ ビジネスロジック層      │ ← Service
- * └─────────────────────────┘
- *           ↓↑
- * ┌─────────────────────────┐
- * │ データアクセス層        │ ← Mapper
- * └─────────────────────────┘
- *
- * 【Controllerの責務】
- *
- * ○ やるべきこと:
- * - HTTPリクエストのマッピング（@GetMapping, @PostMapping）
- * - リクエストパラメータの取得（@PathVariable, @RequestParam）
- * - バリデーション（@Valid, BindingResult）
- * - Serviceの呼び出し
- * - Modelへのデータ設定（画面に渡すデータ）
- * - ビュー名の返却（どのHTMLを表示するか）
- *
- * × やってはいけないこと:
- * - ビジネスロジックを書く（Serviceの責務）
- * - 直接Mapperを呼ぶ（Serviceを経由する）
- * - データベース操作（Mapperの責務）
- */
-
-/**
- * @Controller
- *
- * このクラスがSpring MVCのControllerであることを示す
- * @Component の特殊化版で、以下の機能を持つ:
- * - Beanとして登録される
- * - リクエストハンドラメソッドを持てる
- * - ビュー名を返せる
- *
- * 【@Controller と @RestController の違い】
- * @Controller: ビュー名を返す（Thymeleafなどのテンプレートを使用）
- * @RestController: JSONやXMLを返す（RESTful APIに使用）
- *
- * このアプリはThymeleafを使うので @Controller を使用
+ * モダン版との対比: モダン版は @RestController で JSON を返し、画面生成は React が担う。
+ * 二重送信対策も従来型の PRG（リダイレクト）ではなくクライアント側の状態管理で行う。
  */
 @Controller
-
-/**
- * @Slf4j
- * Lombokのアノテーション
- * ログ出力用の log フィールドを自動生成
- */
-@Slf4j
-
-/**
- * @RequiredArgsConstructor
- * Lombokのアノテーション
- * final フィールドを引数に取るコンストラクタを自動生成
- * MemoService を注入するために使用
- */
-@RequiredArgsConstructor
-
-/**
- * @RequestMapping
- *
- * このControllerの基底URLパスを指定
- * このControllerの全メソッドに共通のパスプレフィックス
- *
- * 例:
- * @RequestMapping("/memos") + @GetMapping("") → GET /memos
- * @RequestMapping("/memos") + @GetMapping("/{id}") → GET /memos/{id}
- * @RequestMapping("/memos") + @PostMapping("") → POST /memos
- */
-@RequestMapping("/memos")
+@Slf4j                    // ログ出力用の log フィールドを生成（docs/解説/DIとLombok.md）
+@RequiredArgsConstructor  // final フィールドのコンストラクタを生成し memoService を注入
+@RequestMapping("/memos") // このクラスの全メソッド共通の URL 接頭辞
 public class MemoController {
 
-    /*
-     * ============================================
-     * 依存関係（フィールド）
-     * ============================================
-     */
-
-    /**
-     * MemoService（ビジネスロジック層）
-     * @RequiredArgsConstructor によりコンストラクタで注入される
-     */
     private final MemoService memoService;
 
-    /*
-     * ============================================
-     * リクエストハンドラメソッド
-     * ============================================
-     */
-
     /**
-     * メモ一覧画面を表示（検索機能統合）
+     * 一覧画面を表示（keyword があれば検索、なければ全件）。
      *
-     * 【URL】
-     * GET /memos
-     * GET /memos?keyword=xxx
+     * 一覧と検索を同じ GET /memos で受ける。keyword が空かどうかの判断は Service.search() に
+     * 委譲し、Controller 側に if/else を書かない。「キーワードが空なら全件」はビジネスルール
+     * なので判断は Service に置き、同じ判断を Controller にも書いて二重管理・将来ズレるのを避ける。
      *
-     * 【処理の流れ】
-     * 1. keywordパラメータがある場合は検索、ない場合は全件取得
-     * 2. Modelに設定
-     * 3. ビュー名を返す
-     * 4. Thymeleafがテンプレートをレンダリング
-     * 5. HTMLがブラウザに返される
-     *
-     * 【RESTful設計】
-     * 一覧取得と検索を同じエンドポイントで処理する
-     * これにより、URLがシンプルになり、一貫性が向上する
-     *
-     * @param keyword 検索キーワード（任意パラメータ）
-     * @param model Modelオブジェクト（画面に渡すデータを格納）
+     * @param keyword 検索キーワード（任意。/memos は null、/memos?keyword=... で値が入る）
+     * @param model 画面に渡すデータの入れ物
      * @return ビュー名（templates/memos/list.html）
      */
     @GetMapping("")
-    /*
-     * @GetMapping
-     *
-     * GETリクエストを処理するメソッドであることを示す
-     * @GetMapping("") → /memos へのGETリクエスト
-     * @GetMapping("/abc") → /memos/abc へのGETリクエスト
-     *
-     * 【HTTPメソッド】
-     * - GET: データの取得（一覧表示、詳細表示など）
-     * - POST: データの送信（登録、更新、削除など）
-     * - PUT: データの更新（RESTful APIで使用）
-     * - DELETE: データの削除（RESTful APIで使用）
-     *
-     * Webアプリ（HTML）では、主にGETとPOSTを使用
-     */
     public String list(
             @RequestParam(name = "keyword", required = false) String keyword,
-            /*
-             * @RequestParam
-             * クエリパラメータを受け取る
-             *
-             * URL: /memos?keyword=買い物
-             * → keyword = "買い物"
-             *
-             * URL: /memos
-             * → keyword = null（required=false のため）
-             *
-             * required = false: 任意パラメータ（なくてもOK）
-             * これにより、一覧表示と検索を同じエンドポイントで処理できる
-             */
             Model model
-            /*
-             * Model
-             *
-             * 画面（View）に渡すデータを格納するオブジェクト
-             * Springが自動的に引数に渡してくれる
-             *
-             * model.addAttribute("キー", 値)
-             * → Thymeleafで ${キー} として参照できる
-             */
     ) {
         log.debug("メモ一覧画面を表示します。検索キーワード: {}", keyword);
 
-        /*
-         * 一覧取得も検索も search() に委譲する
-         *
-         * search() は「keyword が null や空文字なら全件取得」という
-         * 判断まで含めて面倒を見てくれるため、Controller 側に if/else は不要。
-         * 「キーワードが空なら全件」はビジネスルールなので、
-         * その判断は Service に置き、Controller は受け渡しに徹する
-         * （同じ判断を Controller にも書くと、二重管理になり将来ズレる）
-         */
         List<MemoDto> memos = memoService.search(keyword);
 
-        /*
-         * Modelにデータを設定
-         * "memos" → Thymeleaf側で ${memos} として参照可能
-         * "keyword" → 検索後もキーワードをフォームに残すため
-         */
         model.addAttribute("memos", memos);
-        model.addAttribute("keyword", keyword);
-
-        /*
-         * ビュー名を返す
-         *
-         * "memos/list" → src/main/resources/templates/memos/list.html
-         *
-         * 【ビュー名の解決ルール】
-         * application.ymlの設定により:
-         * spring:
-         *   thymeleaf:
-         *     prefix: classpath:/templates/
-         *     suffix: .html
-         *
-         * "memos/list"
-         * → prefix + "memos/list" + suffix
-         * → "classpath:/templates/memos/list.html"
-         */
+        model.addAttribute("keyword", keyword); // 検索後もフォームにキーワードを残すため
         return "memos/list";
     }
 
     /**
-     * 新規作成画面を表示
+     * 新規作成画面を表示。
      *
-     * 【URL】
-     * GET /memos/new
+     * 空の MemoDto を渡すのは、フォームの th:object="${memoDto}" が束ねる対象を用意し、
+     * かつ検証エラー時に入力値を保持できるようにするため。
      *
-     * @param model Modelオブジェクト
+     * @param model 画面に渡すデータの入れ物
      * @return ビュー名（templates/memos/new.html）
      */
     @GetMapping("/new")
     public String newMemo(Model model) {
         log.debug("メモ新規作成画面を表示します");
-
-        /*
-         * 空のDTOをModelに設定
-         *
-         * なぜ必要か:
-         * - Thymeleafのフォームで th:object="${memoDto}" を使うため
-         * - 初期表示では空のフォームを表示する
-         * - バリデーションエラー時に入力値を保持するため
-         */
         model.addAttribute("memoDto", new MemoDto());
-
         return "memos/new";
     }
 
     /**
-     * メモを新規登録
+     * メモを新規登録。
      *
-     * 【URL】
-     * POST /memos
+     * @Valid で検証し、失敗時は入力画面へ戻す。成功時は一覧へリダイレクトする（PRG パターン。
+     * リダイレクトせず画面を直接返すと、F5 で POST が再送信され二重登録になる。詳細は
+     * docs/解説/Spring-MVCとThymeleaf.md）。BindingResult は @Valid の直後に置く必要がある。
      *
-     * 【処理の流れ】
-     * 1. フォームから送信されたデータをMemoDtoで受け取る
-     * 2. バリデーション（@Valid）
-     * 3. エラーがあれば入力画面に戻る
-     * 4. エラーがなければServiceで登録
-     * 5. 一覧画面にリダイレクト
-     *
-     * @param memoDto フォームから送信されたデータ
-     * @param bindingResult バリデーション結果
-     * @param redirectAttributes リダイレクト先に渡すデータ
-     * @return ビュー名またはリダイレクトURL
+     * @param memoDto フォーム送信値（@ModelAttribute でバインド）
+     * @param bindingResult 検証結果
+     * @param redirectAttributes リダイレクト先へ渡すフラッシュメッセージ用
+     * @return 検証失敗時は入力画面、成功時は一覧へのリダイレクト
      */
     @PostMapping("")
     public String create(
             @Valid @ModelAttribute MemoDto memoDto,
-            /*
-             * @Valid
-             * バリデーションを実行する
-             * MemoDto の @NotBlank, @Size などをチェック
-             *
-             * @ModelAttribute
-             * フォームのデータをMemoDtoにバインドする
-             * 省略可能だが、明示的に書くことを推奨
-             *
-             * HTMLフォーム:
-             * <input name="title" />    → memoDto.setTitle()
-             * <textarea name="content"> → memoDto.setContent()
-             */
             BindingResult bindingResult,
-            /*
-             * BindingResult
-             * バリデーション結果を格納するオブジェクト
-             * @Valid の直後に配置する必要がある
-             *
-             * bindingResult.hasErrors(): エラーがあるか
-             * bindingResult.getAllErrors(): 全エラーのリスト
-             * bindingResult.getFieldErrors(): フィールドごとのエラー
-             */
             RedirectAttributes redirectAttributes
-            /*
-             * RedirectAttributes
-             * リダイレクト先に渡すデータを格納
-             *
-             * redirectAttributes.addFlashAttribute("message", "登録しました")
-             * → リダイレクト先で ${message} として参照可能
-             * → リロードしてもメッセージは消える（フラッシュスコープ）
-             */
     ) {
         log.debug("メモを登録します: {}", memoDto);
 
-        /*
-         * バリデーションエラーチェック
-         */
         if (bindingResult.hasErrors()) {
-            /*
-             * エラーがある場合
-             * - 入力画面（new.html）に戻る
-             * - ModelにmemoDtoが自動的に設定される
-             * - Thymeleafでエラーメッセージを表示できる
-             */
             log.debug("バリデーションエラー: {}", bindingResult.getAllErrors());
-            return "memos/new";
+            return "memos/new"; // memoDto は Model に残るので入力値とエラーを再表示できる
         }
 
-        /*
-         * Serviceで登録
-         */
         memoService.create(memoDto);
-
-        /*
-         * フラッシュメッセージを設定
-         * リダイレクト先（一覧画面）で表示される
-         */
         redirectAttributes.addFlashAttribute("successMessage", "メモを登録しました");
-
-        /*
-         * リダイレクト
-         *
-         * "redirect:/memos"
-         * → 別のURLにリダイレクトする
-         * → ブラウザに「GET /memos にアクセスしてね」という指示を返す
-         * → ブラウザが GET /memos を実行
-         * → list() メソッドが呼ばれる
-         *
-         * 【なぜリダイレクトするのか（PRG パターン）】
-         * Post-Redirect-Get パターン
-         *
-         * リダイレクトしない場合:
-         * POST /memos → 登録成功 → そのまま画面表示
-         * → ブラウザでF5（リロード）すると POST が再送信される
-         * → 同じデータが2重登録される！
-         *
-         * リダイレクトする場合:
-         * POST /memos → 登録成功 → リダイレクト → GET /memos → 一覧表示
-         * → ブラウザでF5すると GET /memos が再送信される
-         * → 一覧表示が再表示されるだけ（2重登録されない）
-         */
         return "redirect:/memos";
     }
 
     /**
-     * メモ詳細画面を表示
+     * メモ詳細画面を表示。
      *
-     * 【URL】
-     * GET /memos/{id}
-     * 例: GET /memos/1
-     *
-     * @param id メモID（URLパスから取得）
-     * @param model Modelオブジェクト
+     * @param id メモ ID（URL パスから取得）
+     * @param model 画面に渡すデータの入れ物
      * @return ビュー名（templates/memos/show.html）
      */
     @GetMapping("/{id}")
-    public String show(
-            @PathVariable Long id,
-            /*
-             * @PathVariable
-             * URLパスの一部を変数として受け取る
-             *
-             * @GetMapping("/{id}") + @PathVariable Long id
-             * → URL /memos/1 の場合、id = 1
-             * → URL /memos/123 の場合、id = 123
-             *
-             * 【型変換】
-             * URLの文字列が自動的にLong型に変換される
-             * 変換できない場合（例: /memos/abc）はエラー
-             */
-            Model model
-    ) {
+    public String show(@PathVariable Long id, Model model) {
         log.debug("メモ詳細画面を表示します: id={}", id);
-
-        /*
-         * Serviceから指定IDのメモを取得
-         */
         MemoDto memo = memoService.findById(id);
-
-        /*
-         * Modelに設定
-         */
         model.addAttribute("memo", memo);
-
         return "memos/show";
     }
 
     /**
-     * 編集画面を表示
+     * 編集画面を表示。取得済みのメモをフォームの初期値にする。
      *
-     * 【URL】
-     * GET /memos/{id}/edit
-     * 例: GET /memos/1/edit
-     *
-     * @param id メモID
-     * @param model Modelオブジェクト
+     * @param id メモ ID
+     * @param model 画面に渡すデータの入れ物
      * @return ビュー名（templates/memos/edit.html）
      */
     @GetMapping("/{id}/edit")
     public String edit(@PathVariable Long id, Model model) {
         log.debug("メモ編集画面を表示します: id={}", id);
-
-        /*
-         * Serviceから指定IDのメモを取得
-         */
         MemoDto memo = memoService.findById(id);
-
-        /*
-         * Modelに設定
-         * フォームの初期値として使用される
-         */
         model.addAttribute("memoDto", memo);
-
         return "memos/edit";
     }
 
     /**
-     * メモを更新
+     * メモを更新。検証成功時は詳細画面へリダイレクトする（PRG パターン）。
      *
-     * 【URL】
-     * POST /memos/{id}/update
-     *
-     * @param id メモID
-     * @param memoDto フォームから送信されたデータ
-     * @param bindingResult バリデーション結果
-     * @param redirectAttributes リダイレクト先に渡すデータ
-     * @return ビュー名またはリダイレクトURL
+     * @param id メモ ID
+     * @param memoDto フォーム送信値
+     * @param bindingResult 検証結果
+     * @param redirectAttributes リダイレクト先へ渡すフラッシュメッセージ用
+     * @return 検証失敗時は編集画面、成功時は詳細へのリダイレクト
      */
     @PostMapping("/{id}/update")
     public String update(
@@ -456,196 +154,43 @@ public class MemoController {
     ) {
         log.debug("メモを更新します: id={}, {}", id, memoDto);
 
-        /*
-         * バリデーションエラーチェック
-         */
         if (bindingResult.hasErrors()) {
             log.debug("バリデーションエラー: {}", bindingResult.getAllErrors());
-            /*
-             * エラー時は編集画面に戻る
-             * memoDto.setId() でIDを設定しておかないと、
-             * フォームのaction URLが正しく生成されない
-             */
+            // フォームの action URL 生成に id が要るので、URL から得た id を詰め直す
             memoDto.setId(id);
 
-            /*
-             * 【なぜ日時を取り直すのか】
-             * フォームから送信されるのは title と content だけなので、
-             * この時点の memoDto の日時フィールドは null。
-             * そのまま画面に戻すと「作成日時・更新日時」欄が空になってしまう。
-             * DBから現在の値を取り直し、表示用フィールドだけ補完する
-             * （日時をフォームの hidden で往復させる方法もあるが、
-             *   改ざんできる項目を増やさないため、サーバー側で取り直す方が安全）
-             */
+            // 【なぜ日時を取り直すのか】
+            // フォームからは title と content しか送られてこないため、この時点の memoDto の
+            // 日時フィールドは null。そのまま画面へ戻すと日時欄が空になる。DB から現在値を
+            // 取り直して表示用フィールドだけ補完する。日時を hidden で往復させる手もあるが、
+            // 改ざんできる項目を増やさないため、サーバー側で取り直す方が安全。
             MemoDto current = memoService.findById(id);
             memoDto.setCreatedAtFormatted(current.getCreatedAtFormatted());
             memoDto.setUpdatedAtFormatted(current.getUpdatedAtFormatted());
-
             return "memos/edit";
         }
 
-        /*
-         * DTOにIDを設定
-         * フォームからはtitle, contentのみ送信される
-         * idはURLから取得してセット
-         */
-        memoDto.setId(id);
-
-        /*
-         * Serviceで更新
-         */
+        memoDto.setId(id); // フォームからは title/content のみ。id は URL から詰める
         memoService.update(memoDto);
-
-        /*
-         * フラッシュメッセージを設定
-         */
         redirectAttributes.addFlashAttribute("successMessage", "メモを更新しました");
-
-        /*
-         * 詳細画面にリダイレクト
-         * "redirect:/memos/" + id
-         * → 例: id=1 の場合、"redirect:/memos/1"
-         */
         return "redirect:/memos/" + id;
     }
 
     /**
-     * メモを削除
+     * メモを削除。
      *
-     * 【URL】
-     * POST /memos/{id}/delete
+     * 削除は GET ではなく POST で受ける。GET は「安全な操作（データを変えない）」に限るべきで、
+     * GET にするとリンククリックやブラウザのプリフェッチで誤削除が起きうるため。
      *
-     * 【なぜPOSTか】
-     * - GETは安全な操作（データを変更しない）のみに使うべき
-     * - 削除はデータを変更するのでPOSTを使う
-     * - GETだと、リンククリックやブラウザのプリフェッチで誤削除の危険
-     *
-     * @param id メモID
-     * @param redirectAttributes リダイレクト先に渡すデータ
-     * @return リダイレクトURL
+     * @param id メモ ID
+     * @param redirectAttributes リダイレクト先へ渡すフラッシュメッセージ用
+     * @return 一覧へのリダイレクト
      */
     @PostMapping("/{id}/delete")
-    public String delete(
-            @PathVariable Long id,
-            RedirectAttributes redirectAttributes
-    ) {
+    public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         log.debug("メモを削除します: id={}", id);
-
-        /*
-         * Serviceで削除
-         */
         memoService.delete(id);
-
-        /*
-         * フラッシュメッセージを設定
-         */
         redirectAttributes.addFlashAttribute("successMessage", "メモを削除しました");
-
-        /*
-         * 一覧画面にリダイレクト
-         */
         return "redirect:/memos";
     }
-
 }
-
-/*
- * ============================================
- * Spring MVCの仕組み（補足）
- * ============================================
- *
- * 【リクエスト処理の流れ】
- *
- * 1. ブラウザから HTTPリクエスト
- *    例: GET /memos
- *
- * 2. DispatcherServlet（Spring MVCの中心）がリクエストを受け取る
- *
- * 3. HandlerMapping が適切なControllerメソッドを探す
- *    @GetMapping("") のメソッドを見つける
- *
- * 4. Controllerメソッドを実行
- *    list() メソッドが呼ばれる
- *
- * 5. Controllerがビュー名を返す
- *    return "memos/list"
- *
- * 6. ViewResolver がビュー名からテンプレートファイルを解決
- *    "memos/list" → templates/memos/list.html
- *
- * 7. Thymeleaf がテンプレートをレンダリング
- *    ${memos} などの式を評価してHTMLを生成
- *
- * 8. 生成されたHTMLをブラウザに返す
- *
- * 【Modelの仕組み】
- *
- * Controller:
- * model.addAttribute("memos", memos);
- *
- * ↓ Spring MVCが内部で管理
- *
- * Thymeleaf:
- * <div th:each="memo : ${memos}">
- *
- * 【リダイレクトの仕組み】
- *
- * Controller:
- * return "redirect:/memos";
- *
- * ↓
- *
- * HTTPレスポンス:
- * HTTP/1.1 302 Found
- * Location: /memos
- *
- * ↓
- *
- * ブラウザ:
- * GET /memos を実行
- *
- * ↓
- *
- * Controller:
- * list() メソッドが呼ばれる
- */
-
-/*
- * ============================================
- * バリデーションエラーの表示（Thymeleaf側）
- * ============================================
- *
- * Controller:
- * if (bindingResult.hasErrors()) {
- *     return "memos/new";
- * }
- *
- * Thymeleaf (new.html):
- * <form th:object="${memoDto}">
- *     <input th:field="*{title}" />
- *     <span th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></span>
- * </form>
- *
- * エラーメッセージ:
- * <span class="error">タイトルを入力してください</span>
- */
-
-/*
- * ============================================
- * フラッシュメッセージの表示（Thymeleaf側）
- * ============================================
- *
- * Controller:
- * redirectAttributes.addFlashAttribute("successMessage", "登録しました");
- * return "redirect:/memos";
- *
- * Thymeleaf (list.html):
- * <div th:if="${successMessage}" class="alert alert-success">
- *     <span th:text="${successMessage}"></span>
- * </div>
- *
- * 表示結果:
- * <div class="alert alert-success">
- *     <span>登録しました</span>
- * </div>
- */

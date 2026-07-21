@@ -4,377 +4,80 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <!--
-    ============================================
-    MemoMapper XML（2waySQL）
-    ============================================
+    MemoMapper の SQL 本体（2waySQL）。
 
-    【このファイルの役割】
-    MemoMapperインターフェースのメソッドに対応するSQLを定義します
+    MemoMapper.java の各メソッドに、id をメソッド名と一致させて SQL を対応づける。
+    このファイルは「クエリ固有の意図」だけを説明する。2waySQL とは何か・#{} と ${} の違い・
+    resultType と resultMap・動的 SQL タグ（if / where / choose / foreach / set）などの汎用解説は
+    docs/MyBatis2waySQL解説.md（docs/ 直下）にまとめてある。
 
-    【2waySQLとは】
-    - SQLとしても実行可能
-    - MyBatisの動的SQLとしても実行可能
-    という「2つの方法で実行できるSQL」のこと
-
-    【なぜXMLに書くのか】
-    1. SQLとJavaコードを分離できる
-       - SQLの変更時にJavaコードを触らなくて良い
-       - SQLの可読性が高い
-
-    2. 動的SQLが書きやすい
-       - 条件によってSQLを変える処理が簡単
-
-    3. 複雑なSQLも見やすい
-       - JOIN、サブクエリなども整形して書ける
-
-    【XMLの基本構造】
-    mapper namespace="パッケージ名.インターフェース名"
-        select id="メソッド名" resultType="戻り値の型"
-            SELECT文
-        /select
-    /mapper
+    補足: 型パラメータは、XML コメント内では山括弧が使えないため List[Memo] のように角括弧で表記する
+    （実際の Java コードでは半角の山括弧を使う）。
 -->
 
 <!--
-    namespace属性
-
-    【重要】
-    MemoMapperインターフェースの完全修飾名（パッケージ名を含む）を指定
-    これにより、MyBatisがインターフェースとXMLを結びつける
-
-    namespace と インターフェースのパッケージ名が一致していないとエラーになる
+    namespace は MemoMapper インターフェースの完全修飾名。これが一致することで MyBatis が
+    インターフェースと XML を結びつける。
 -->
 <mapper namespace="com.example.memoapp.mapper.MemoMapper">
 
     <!--
-        ============================================
-        SELECT文: 全件取得
-        ============================================
-
-        【対応するメソッド】
-        findAll()
-
-        【Javaでの実際の型定義】
-        List[Memo] findAll();
-
-        【戻り値の型】
-        List[Memo] - Memoオブジェクトのリスト
-        - データが0件の場合は空のListが返る（nullは返らない）
-
-        ※ List[Memo] の意味:
-          - List: Javaのリスト（複数の要素を格納するコレクション）
-          - [Memo]: リストの要素がMemoオブジェクトであることを示す型パラメータ
-          - つまり「Memoのリスト」を返すメソッドです
-
-        ※ 実際のJavaコードでは山括弧を使用しますが、XMLコメント内では
-          角括弧で表記しています
-
-        【SQL】
-        memos テーブルの全レコードを、作成日時の新しい順に取得する
-    -->
-    <!--
-        【id属性】
-        MemoMapperインターフェースのメソッド名と一致させる
-        メソッド名: findAll() → id="findAll"
-
-        【resultType属性】
-        SQLの実行結果をどの型にマッピングするか指定
-        "Memo" = com.example.memoapp.entity.Memo
-
-        【なぜ完全修飾名を書かないのか】
-        application.yml で type-aliases-package を設定しているため
-
-        mybatis:
-          type-aliases-package: com.example.memoapp.entity
-
-        このパッケージ内のクラスは、クラス名だけで参照できる
-
-        【全件取得SQL】
-        memosテーブルから全てのカラムを取得
-        created_atの降順でソート（新しいメモが上に来る）
-
-        【MyBatisの自動マッピング】
-        SQLの結果（ResultSet）を自動的にMemoオブジェクトに変換する
-
-        データベースのカラム名 → Javaのフィールド名
-        created_at → createdAt
-        updated_at → updatedAt
-
-        application.yml の設定により自動変換される:
-        mybatis:
-          configuration:
-            map-underscore-to-camel-case: true
-
-        【明示的なマッピングが必要な場合】
-        自動変換できない場合は、AS句を使う:
-        SELECT created_at AS createdAt FROM memos
-
-        または resultMap を使う（後述）
+        findAll: 全件取得。
+        一覧は新しいメモを上に見せたいので created_at の降順でソートする。
+        カラムは SELECT * ではなく明示列挙し、取得列を意図的に固定している。
     -->
     <select id="findAll" resultType="Memo">
         SELECT id, title, content, created_at, updated_at FROM memos ORDER BY created_at DESC
     </select>
 
     <!--
-        ============================================
-        SELECT文: ID指定で1件取得
-        ============================================
-
-        【対応するメソッド】
-        findById(Long id)
-
-        【Javaでの実際の型定義】
-        Optional[Memo] findById(Long id);
-
-        【戻り値の型】
-        Optional[Memo] - 存在する場合はMemoオブジェクト、存在しない場合は空
-        - データが存在する場合: Optional.of(memo)
-        - データが存在しない場合: Optional.empty()
-
-        ※ Optional[Memo] の意味:
-          - Optional: 値が存在するかしないかを表すコンテナ
-          - [Memo]: 値が存在する場合の型がMemoオブジェクトであることを示す
-          - null安全な設計で、IDが存在しない場合も安全に扱えます
-
-        ※ 実際のJavaコードでは山括弧を使用しますが、XMLコメント内では
-          角括弧で表記しています
-
-        【SQL】
-        指定されたIDのメモを1件取得
-        存在しない場合は Optional.empty()
-    -->
-    <!--
-        【パラメータの受け取り方】
-        メソッドの引数 id を、SQL内で #{id} として参照できる
-
-        #{id} = プレースホルダー（PreparedStatementのパラメータ）
-
-        実際に実行されるSQL:
-        SELECT * FROM memos WHERE id = ?
-
-        そして ? に id の値がバインドされる
-
-        【#{} と ${} の違い】
-        #{id}: プレースホルダー（推奨、SQLインジェクション対策）
-               → SELECT * FROM memos WHERE id = ?
-
-        ${id}: 文字列置換（非推奨、危険）
-               → SELECT * FROM memos WHERE id = 1
-
-        ${} は動的にテーブル名やカラム名を変える場合のみ使用
-        通常は #{} を使うこと！
-
-        【LIMIT 1 を付けない理由】
-        - id は PRIMARY KEY なので、必ず0件か1件
-        - LIMITを付けても付けなくても結果は同じ
-        - MyBatisが自動的にOptionalに変換してくれる
+        findById: ID 指定で 1 件取得。
+        id は PRIMARY KEY なので結果は必ず 0 件か 1 件。LIMIT 1 は不要で、MyBatis が
+        0/1 件を Optional[Memo] に変換する。
     -->
     <select id="findById" resultType="Memo">
         SELECT id, title, content, created_at, updated_at FROM memos WHERE id = #{id}
     </select>
 
     <!--
-        ============================================
-        INSERT文: 新規登録
-        ============================================
-
-        【対応するメソッド】
-        void insert(Memo memo);
-
-        【SQL】
-        新しいメモをデータベースに登録
-    -->
-    <!--
-        【useGeneratedKeys属性】
-        useGeneratedKeys="true" を指定すると、データベースが自動生成したキー
-        （PostgreSQLのSERIALやIDENTITYで採番されたID）を取得できる
-
-        【keyProperty属性】
-        keyProperty="id" を指定すると、自動生成されたIDが
-        引数のMemoオブジェクトの id フィールドに自動的にセットされる
-
-        【動作の流れ】
-        1. Memoオブジェクト（id=null）をinsertに渡す
-        2. INSERT文が実行される
-        3. データベースがIDを自動採番（例: 1）
-        4. MyBatisが採番されたIDを取得
-        5. Memoオブジェクトの id フィールドに 1 がセットされる
-        6. 呼び出し元で memo.getId() すると 1 が返る
-
-        【パラメータの取り方】
-        引数がオブジェクト（Memo）の場合：
-        #{title} → memo.getTitle()
-        #{content} → memo.getContent()
-
-        【created_at, updated_atについて】
-        created_at, updated_at は INSERT時に指定しない
-        データベースのDEFAULT値（CURRENT_TIMESTAMP）が自動的に設定される
+        insert: 新規登録。
+        useGeneratedKeys="true" と keyProperty="id" で、DB が採番した id を引数の Memo.id へ戻す
+        （呼び出し元は insert 後に memo.getId() で採番結果を受け取れる）。
+        created_at / updated_at は指定しない。DB の DEFAULT CURRENT_TIMESTAMP が入る。
     -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO memos (title, content) VALUES (#{title}, #{content})
     </insert>
 
     <!--
-        ============================================
-        UPDATE文: 更新
-        ============================================
-
-        【対応するメソッド】
-        int update(Memo memo);
-
-        【SQL】
-        指定されたIDのメモを更新
-    -->
-    <!--
-        【戻り値】
-        update タグは、影響を受けた行数を返す
-        - 1: 更新成功
-        - 0: 対象のIDが存在しない（更新失敗）
-
-        メソッドの戻り値の型が int の場合、自動的に行数が返る
-
-        【実行されるSQL】
-        UPDATE memos SET title = ?, content = ? WHERE id = ?
-
-        【updated_at の自動更新】
-        V1__Create_memos_table.sql で作成したトリガーにより、
-        UPDATEが実行されると、updated_at が自動的に現在時刻に更新される
-
-        CREATE TRIGGER trigger_update_memos_updated_at
-            BEFORE UPDATE ON memos
-            FOR EACH ROW
-            EXECUTE FUNCTION update_updated_at_column();
-
-        【楽観的ロックを実装する場合】
-        WHERE id = #{id} AND updated_at = #{updatedAt}
-
-        更新前の updated_at と比較することで、
-        他のユーザーが先に更新していたら、更新が失敗する
+        update: 更新。戻り値は影響行数（1=成功、0=対象 id なし）。
+        updated_at はここで書かない。V1__Create_memos_table.sql のトリガーが UPDATE 時に
+        現在時刻へ自動更新する。
     -->
     <update id="update">
         UPDATE memos SET title = #{title}, content = #{content} WHERE id = #{id}
     </update>
 
     <!--
-        ============================================
-        DELETE文: ID指定で削除
-        ============================================
-
-        【対応するメソッド】
-        int deleteById(Long id);
-
-        【SQL】
-        指定されたIDのメモを削除
-    -->
-    <!--
-        【戻り値】
-        delete タグも、影響を受けた行数を返す
-        - 1: 削除成功
-        - 0: 対象のIDが存在しない（削除失敗）
-
-        【論理削除 vs 物理削除】
-
-        物理削除（現在の実装）:
-        - データベースから完全に削除される
-        - ディスク容量の節約になる
-        - 削除したデータは復元できない
-
-        論理削除:
-        - deleted フラグを立てるだけ
-        - データは残るので復元可能
-        - 削除履歴を追跡できる
-
-        DELETE FROM memos WHERE id = #{id}
-        ↓
-        UPDATE memos SET deleted = true WHERE id = #{id}
-
-        論理削除を実装する場合:
-        1. deleted カラムを追加（BOOLEAN型）
-        2. SELECT文に WHERE deleted = false を追加
-        3. DELETE文を UPDATE deleted = true に変更
-
-        このアプリでは、シンプルさのため物理削除を採用
+        deleteById: ID 指定で削除（物理削除）。戻り値は影響行数（1=成功、0=対象 id なし）。
     -->
     <delete id="deleteById">
         DELETE FROM memos WHERE id = #{id}
     </delete>
 
     <!--
-        ============================================
-        SELECT文: キーワード検索
-        ============================================
+        searchByKeyword: タイトルまたは本文の部分一致検索。並び順は findAll と同じ新しい順。
 
-        【対応するメソッド】
-        searchByKeyword(@Param("keyword") String keyword)
+        【落とし穴: LIKE のワイルドカード文字をエスケープしていない】
+        % と _ は LIKE では「任意の文字列」「任意の 1 文字」を表す特殊文字。ユーザーが「100%」と
+        入力すると条件は LIKE '%100%%' となり「100」を含む全メモがヒットする（「100%」ちょうどの
+        絞り込みにならない）。厳密にするには Service 層で % _ \ を \% \_ \\ に置換し、
+        LIKE ... ESCAPE '\' を使う。このアプリは「余計にヒットするだけで実害が小さい」ため、
+        学習用にシンプルさを優先してあえてエスケープしていない。
 
-        【Javaでの実際の型定義】
-        List[Memo] searchByKeyword(@Param("keyword") String keyword);
-
-        【戻り値の型】
-        List[Memo] - 検索条件に一致したMemoオブジェクトのリスト
-
-        【パラメータ】
-        @Param("keyword"): SQL内で #{keyword} として参照できるキーワード文字列
-
-        ※ List[Memo] の意味:
-          - List: Javaのリスト（複数の要素を格納するコレクション）
-          - [Memo]: リストの要素がMemoオブジェクトであることを示す型パラメータ
-          - つまり「Memoのリスト」を返すメソッドです
-
-        ※ 実際のJavaコードでは山括弧を使用しますが、XMLコメント内では
-          角括弧で表記しています
-
-        【SQL】
-        タイトルまたは本文にキーワードを含むメモを検索
-    -->
-    <!--
-        【@Paramアノテーション】
-        メソッド定義:
-        List[Memo] searchByKeyword(@Param("keyword") String keyword);
-
-        ※ List[Memo] はJavaの型パラメータ表記（Memoのリスト）
-        ※ 実際のJavaコードでは半角の山括弧を使いますが、
-           XMLコメント内では角括弧 [] を使用しています
-
-        @Param("keyword") により、SQL内で #{keyword} として参照できる
-
-        【LIKE句による部分一致検索】
-        CONCAT('%', #{keyword}, '%') = '%キーワード%' という文字列を作る
-        LIKE '%キーワード%' = 前後に何でもOK（部分一致）
-
-        例: keyword = "買い物"
-            CONCAT('%', '買い物', '%') → '%買い物%'
-            title LIKE '%買い物%'
-            → "買い物リスト", "明日買い物に行く" などがヒット
-
-        【落とし穴: LIKEのワイルドカード文字はエスケープしていない】
-        % と _ は、LIKEでは「任意の文字列」「任意の1文字」を意味する特殊文字。
-        ユーザーが「100%」と入力すると条件は LIKE '%100%%' となり、
-        「100」を含むすべてのメモがヒットする（「100%」ちょうどの絞り込みにならない）。
-
-        厳密に検索したい場合は、アプリ側で % _ \ を \% \_ \\ に置換した上で
-        LIKE ... ESCAPE '\' を使う（Service層で置換してからMapperに渡す設計が一般的）。
-        このアプリでは「余計に多くヒットする」だけで実害が小さいため、
-        学習用としてシンプルさを優先し、あえてエスケープしていない
-
-        【LIKE検索のパフォーマンス】
-        部分一致（LIKE '%買い物%'）は通常のB-treeインデックスが使えず、
-        全行を順に調べる（Seq Scan）ため、データ量が増えると遅くなる
-
-        【改善方法】
-        1. pg_trgm 拡張 + GINインデックス（gin_trgm_ops）
-           LIKE '%...%' のままインデックスを効かせられる
-           ※ V1__Create_memos_table.sql にある to_tsvector のGINインデックスは
-             全文検索演算子（@@）専用で、このLIKE検索には使われないことに注意
-             （詳細と実装演習は V1__Create_memos_table.sql のコメントを参照）
-
-        2. 全文検索（to_tsvector @@ plainto_tsquery）へ書き換える
-           V1のGINインデックスが活きるのはこちら
-
-        3. 全文検索エンジン（Elasticsearch）を使う
-           大量のデータを高速に検索できる
-
-        このアプリでは、シンプルさのためLIKE検索を使用
+        【性能の注意】LIKE '%...%' は B-tree インデックスが効かず全行走査になる。
+        V1 の GIN インデックスも全文検索演算子（@@）専用で、この LIKE には使われない。
+        速くする方法（pg_trgm など）は V1__Create_memos_table.sql のコメントを参照。
     -->
     <select id="searchByKeyword" resultType="Memo">
         SELECT id, title, content, created_at, updated_at
@@ -384,73 +87,9 @@
     </select>
 
     <!--
-        ============================================
-        SELECT文: ページング付き全件取得
-        ============================================
-
-        【対応するメソッド】
-        findAllWithPaging(@Param("limit") int limit, @Param("offset") int offset)
-
-        【Javaでの実際の型定義】
-        List[Memo] findAllWithPaging(@Param("limit") int limit, @Param("offset") int offset);
-
-        【戻り値の型】
-        List[Memo] - 指定範囲のMemoオブジェクトのリスト
-
-        【パラメータ】
-        - limit: 取得件数（1ページあたりの表示件数）
-        - offset: 開始位置（スキップする件数）
-
-        ※ List[Memo] の意味:
-          - List: Javaのリスト（複数の要素を格納するコレクション）
-          - [Memo]: リストの要素がMemoオブジェクトであることを示す型パラメータ
-          - つまり「Memoのリスト」を返すメソッドです
-
-        ※ 実際のJavaコードでは山括弧を使用しますが、XMLコメント内では
-          角括弧で表記しています
-
-        【SQL】
-        指定された範囲のメモを取得（ページング）
-    -->
-    <!--
-        【複数パラメータ】
-        メソッド定義:
-        List[Memo] findAllWithPaging(@Param("limit") int limit, @Param("offset") int offset);
-
-        ※ List[Memo] はJavaの型パラメータ表記（Memoのリスト）
-        ※ 実際のJavaコードでは半角の山括弧を使いますが、
-           XMLコメント内では角括弧 [] を使用しています
-
-        複数のパラメータは、それぞれ @Param で名前を付ける
-        SQL内で #{limit}, #{offset} として参照できる
-
-        【LIMIT と OFFSET によるページング】
-        LIMIT: 取得する件数
-        OFFSET: スキップする件数
-
-        例:
-        LIMIT 10 OFFSET 0  → 1～10件目を取得（1ページ目）
-        LIMIT 10 OFFSET 10 → 11～20件目を取得（2ページ目）
-        LIMIT 10 OFFSET 20 → 21～30件目を取得（3ページ目）
-
-        【ページングの計算式】
-        ページ番号（1始まり）からoffsetを計算:
-
-        offset = (ページ番号 - 1) × 1ページあたりの件数
-
-        例: 1ページ10件の場合
-        - 1ページ目: offset = (1 - 1) × 10 = 0
-        - 2ページ目: offset = (2 - 1) × 10 = 10
-        - 3ページ目: offset = (3 - 1) × 10 = 20
-
-        【パフォーマンス】
-        OFFSETが大きいと遅くなる（例: OFFSET 10000）
-
-        改善方法:
-        1. キーセットページネーション（Keyset Pagination）
-        2. カーソルベースのページング
-
-        小規模なアプリでは LIMIT/OFFSET で十分
+        findAllWithPaging: ページング付き全件取得（実装演習用・未使用）。
+        limit=取得件数、offset=スキップ件数。offset が大きいと遅くなる（キーセットページ
+        ネーション等で改善できる）。演習手順は MemoService のコメント参照。
     -->
     <select id="findAllWithPaging" resultType="Memo">
         SELECT id, title, content, created_at, updated_at
@@ -460,182 +99,10 @@
     </select>
 
     <!--
-        ============================================
-        SELECT文: 総件数を取得
-        ============================================
-
-        【対応するメソッド】
-        long count();
-
-        【SQL】
-        memosテーブルの総レコード数を取得
-    -->
-    <!--
-        【COUNT関数】
-        COUNT(*) = 全行の数を数える
-        COUNT(カラム名) = NULLでない行の数を数える
-
-        今回は全行を数えるので COUNT(*)
-
-        【resultType】
-        COUNT(*) は数値を返す
-        Javaの long型 にマッピングされる
-
-        【使用例】
-        ページングの総ページ数を計算:
-
-        long totalCount = memoMapper.count();  // 例: 25件
-        int pageSize = 10;
-        int totalPages = (int) Math.ceil((double) totalCount / pageSize);
-        // totalPages = ceil(25 / 10) = ceil(2.5) = 3ページ
-
-        【パフォーマンス】
-        COUNT(*) は、テーブル全体をスキャンするため、
-        データ量が多いと遅くなる可能性がある
-
-        PostgreSQLの場合:
-        - 正確な件数が必要: COUNT(*)
-        - おおよその件数でOK: 統計情報を使う
-          SELECT reltuples::BIGINT FROM pg_class WHERE relname = 'memos';
-
-        このアプリでは、正確な件数が必要なので COUNT(*) を使用
+        count: 総件数（実装演習用・未使用）。総ページ数の計算に使う。
     -->
     <select id="count" resultType="long">
         SELECT COUNT(*) FROM memos
     </select>
 
-    <!--
-        ============================================
-        動的SQLの例（オプション）
-        ============================================
-
-        現在は使用していないが、将来的に必要になるかもしれない
-        動的SQLの書き方の例
-
-        【動的SQLとは】
-        条件によってSQL文を変える機能
-
-        例: 検索条件が指定されている場合のみWHERE句を追加
-    -->
-
-    <!--
-    <select id="searchWithDynamicSQL" resultType="Memo">
-        SELECT
-            id,
-            title,
-            content,
-            created_at,
-            updated_at
-        FROM
-            memos
-        <where>
-            /*
-                where タグ
-                - 子要素が1つでも有効な場合、WHERE句を自動追加
-                - 最初のANDやORを自動削除
-            */
-            <if test="keyword != null and keyword != ''">
-                /*
-                    if タグ
-                    test属性の条件がtrueの場合のみ、この部分が有効になる
-
-                    keyword != null and keyword != ''
-                    = keywordがnullでなく、空文字列でもない場合
-                */
-                AND (
-                    title LIKE CONCAT('%', #{keyword}, '%')
-                    OR content LIKE CONCAT('%', #{keyword}, '%')
-                )
-            </if>
-
-            <if test="createdAfter != null">
-                /*
-                    作成日時の範囲検索
-                    例: 2025年1月1日以降のメモを検索
-                */
-                AND created_at >= #{createdAfter}
-            </if>
-
-            <if test="createdBefore != null">
-                AND created_at <= #{createdBefore}
-            </if>
-        </where>
-        ORDER BY
-            created_at DESC
-    </select>
-    -->
-
-    <!--
-        【他の動的SQLタグ】
-
-        choose, when, otherwise:
-        switch-case文のような分岐
-        例:
-        choose タグ内で when/otherwise を使用
-            when test="sortBy == 'title'" → ORDER BY title
-            when test="sortBy == 'created_at'" → ORDER BY created_at DESC
-            otherwise → ORDER BY updated_at DESC
-
-        foreach:
-        INクエリなど、リストを展開する
-        例:
-        foreach collection="ids" item="id" open="(" separator="," close=")"
-            #{id}
-
-        実行されるSQL:
-        WHERE id IN (1, 2, 3, 4, 5)
-
-        set:
-        UPDATE文で、動的に更新カラムを選択
-        例:
-        UPDATE memos
-        set タグ内で
-            if test="title != null" → title = #{title},
-            if test="content != null" → content = #{content},
-        WHERE id = #{id}
-
-        詳細は docs/MyBatis2waySQL解説.md を参照
-    -->
-
 </mapper>
-
-<!--
-    ============================================
-    まとめ
-    ============================================
-
-    【このXMLファイルで定義したSQL】
-    1. findAll: 全件取得（新しい順）
-    2. findById: ID指定で1件取得
-    3. insert: 新規登録（IDは自動採番）
-    4. update: 更新（updated_atは自動更新）
-    5. deleteById: ID指定で削除
-    6. searchByKeyword: キーワード検索（部分一致）
-    7. findAllWithPaging: ページング付き全件取得
-    8. count: 総件数を取得
-
-    【ファイルの配置】
-    src/main/resources/mybatis/mapper/MemoMapper.xml
-
-    application.ymlで指定したパス:
-    mybatis:
-      mapper-locations: classpath:mybatis/mapper/**/*.xml
-
-    【確認方法】
-    アプリケーション起動時のログで、MyBatisがMapperを読み込んだことを確認:
-
-    Mapped "com.example.memoapp.mapper.MemoMapper.findAll"
-    Mapped "com.example.memoapp.mapper.MemoMapper.findById"
-    ...
-
-    【デバッグ方法】
-    application.ymlのログ設定により、実行されるSQLがコンソールに出力される:
-
-    logging:
-      level:
-        com.example.memoapp.mapper: DEBUG
-
-    mybatis:
-      configuration:
-        log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
--->
