@@ -101,17 +101,17 @@ mvn spring-boot:run
 ### バックエンド
 
 - **Java 17** - プログラミング言語
-- **Spring Boot 3.2.1** - Webアプリケーションフレームワーク
-- **MyBatis 3.0.3** - SQLマッパーフレームワーク（2waySQL）
+- **Spring Boot 3.5.16** - Webアプリケーションフレームワーク
+- **MyBatis Spring Boot Starter 3.0.5** (MyBatis 3.5系) - SQLマッパーフレームワーク（2waySQL）
 - **PostgreSQL 16** - リレーショナルデータベース
-- **Flyway** - データベースマイグレーションツール
+- **Flyway 11**（Spring Boot管理） - データベースマイグレーションツール（アプリ起動時に自動実行）
 - **Lombok** - ボイラープレートコード削減
 
 ### フロントエンド
 
-- **Thymeleaf** - サーバーサイドテンプレートエンジン
+- **Thymeleaf** - サーバーサイドテンプレートエンジン（共通部品は th:fragment で共通化）
 - **HTML5/CSS3** - マークアップ・スタイリング
-- **JavaScript** - クライアントサイドスクリプト
+- **JavaScript (Vanilla)** - クライアントサイドスクリプト（jQuery等のライブラリは不使用）
 
 ### ビルドツール
 
@@ -347,7 +347,9 @@ learn-memo-app-traditional/
 │   ├── 設計書.md                       # アプリケーション設計書
 │   ├── 環境構築手順.md                 # 詳細な環境構築手順
 │   ├── 開発ガイド.md                   # 開発ガイド
-│   └── MyBatis2waySQL解説.md           # MyBatis 2waySQL解説
+│   ├── MyBatis2waySQL解説.md           # MyBatis 2waySQL解説
+│   ├── Webアプリケーション開発ロードマップ.md  # 学習全体構想
+│   └── レビュー.md                     # ドキュメントレビュー記録
 │
 ├── src/
 │   ├── main/
@@ -364,6 +366,7 @@ learn-memo-app-traditional/
 │   │   │   ├── dto/
 │   │   │   │   └── MemoDto.java                 # データ転送オブジェクト
 │   │   │   └── exception/
+│   │   │       ├── MemoNotFoundException.java   # メモ未発見例外（404）
 │   │   │       └── GlobalExceptionHandler.java  # グローバル例外ハンドラ
 │   │   │
 │   │   └── resources/
@@ -373,6 +376,8 @@ learn-memo-app-traditional/
 │   │       ├── mybatis/mapper/
 │   │       │   └── MemoMapper.xml                # MyBatis 2waySQL定義
 │   │       ├── templates/                        # Thymeleafテンプレート
+│   │       │   ├── fragments/
+│   │       │   │   └── parts.html                # 共通ヘッダー・フッター（th:fragment）
 │   │       │   ├── memos/
 │   │       │   │   ├── list.html                 # メモ一覧画面
 │   │       │   │   ├── new.html                  # メモ新規作成画面
@@ -384,10 +389,14 @@ learn-memo-app-traditional/
 │   │           ├── css/
 │   │           │   └── style.css                 # スタイルシート
 │   │           └── js/
-│   │               └── script.js                 # JavaScript
+│   │               └── script.js                 # JavaScript（Vanilla）
 │   │
-│   └── test/                                      # テストコード（今後実装）
+│   └── test/java/com/example/memoapp/             # テストコード（全30テスト、DB不要）
+│       ├── controller/MemoControllerTest.java     # @WebMvcTest スライステスト
+│       ├── service/MemoServiceTest.java           # Mockito 単体テスト
+│       └── dto/MemoDtoTest.java                   # DTO変換テスト
 │
+├── Dockerfile                                     # アプリのマルチステージビルド
 ├── docker-compose.yml                             # Docker Compose設定
 ├── pom.xml                                        # Maven設定
 └── README.md                                      # このファイル
@@ -406,10 +415,10 @@ learn-memo-app-traditional/
 
 #### ブランチ戦略
 
-- `main`: 本番環境用（安定版）
-- `develop`: 開発環境用
+- `main`: 安定版。**直接コミットせず、ブランチ + Pull Request で作業する**（1 PR = 1 関心事）
 - `feature/*`: 機能追加用
 - `fix/*`: バグ修正用
+- `docs/*`: ドキュメント修正用
 
 #### コミットメッセージ
 
@@ -702,10 +711,12 @@ IDEにLombokプラグインをインストール:
 
 このリポジトリの `docs/` フォルダには、以下の詳細なドキュメントがあります:
 
-- **設計書.md**: アプリケーションの設計詳細
+- **設計書.md**: アプリケーションの設計詳細（実装と同期済み）
 - **環境構築手順.md**: より詳細な環境構築手順
 - **開発ガイド.md**: 開発のベストプラクティス
 - **MyBatis2waySQL解説.md**: MyBatisの使い方
+- **Webアプリケーション開発ロードマップ.md**: 学習全体の構想（全リポジトリ共通）
+- **レビュー.md**: ドキュメントレビューの記録と対応状況
 
 ### 公式ドキュメント
 
