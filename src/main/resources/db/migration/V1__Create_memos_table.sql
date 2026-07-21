@@ -132,35 +132,44 @@ CREATE INDEX idx_memos_created_at ON memos (created_at DESC);
 --
 -- 【GINインデックスとは】
 -- Generalized Inverted Index の略
--- 全文検索に特化したインデックス
+-- 「単語 → その単語を含む行」という転置索引を作る、全文検索向けのインデックス
 --
 -- 【to_tsvectorとは】
--- テキストを「検索用の形式」に変換する関数
--- - 'japanese' = 日本語の形態素解析を行う
--- - title || ' ' || content = タイトルと本文を結合
+-- テキストを「単語の集合（tsvector）」に変換する関数
+-- - 'simple' = 基本的なトークン化（全PostgreSQLに標準搭載）
+-- - title || ' ' || content = タイトルと本文を結合して対象にする
 --
--- 【このインデックスでできること】
--- - タイトルや本文に含まれるキーワードを高速検索
--- - 部分一致検索が速くなる
+-- 【重要: このインデックスが効くのは全文検索演算子（@@）だけ】
+-- このインデックスを使えるのは、次のような全文検索クエリのみ:
 --
--- 【使用例】
--- WHERE to_tsvector('simple', title || ' ' || content) @@ plainto_tsquery('simple', 'キーワード')
--- このクエリが高速に実行できる
+--   WHERE to_tsvector('simple', title || ' ' || content)
+--         @@ plainto_tsquery('simple', 'キーワード')
 --
--- 【text search configurationについて】
--- 'simple': 基本的なトークン化（全PostgreSQLに標準搭載）
---   - 単語の分割、大文字小文字の正規化などの基本処理
---   - 日本語も基本的な検索が可能
+-- 一方、このアプリの検索機能（MemoMapper.xml の searchByKeyword）は
+-- LIKE '%キーワード%' による部分一致検索であり、
+-- 【このインデックスは全く使われない】（LIKE は tsvector を経由しないため）。
+-- つまり現状、このインデックスは「作ってあるが、どのクエリからも使われない」状態。
 --
--- 'japanese': 日本語専用設定（別途拡張が必要）
---   - postgres:16-alpineには含まれていない
---   - 本格的な日本語形態素解析が必要な場合は pg_bigm や pgroonga を検討
+-- 【では LIKE '%...%' を速くするには?】
+-- pg_trgm 拡張（トライグラム = 文字列を3文字ずつの断片に分解して索引化）を使う:
 --
--- このアプリでは学習用としてLIKE検索を使用するため、simple設定で十分です
+--   CREATE EXTENSION IF NOT EXISTS pg_trgm;
+--   CREATE INDEX idx_memos_title_trgm ON memos USING GIN (title gin_trgm_ops);
+--   CREATE INDEX idx_memos_content_trgm ON memos USING GIN (content gin_trgm_ops);
 --
--- 【注意】
--- PostgreSQLの全文検索は英語に比べて日本語は精度が低い場合があります
--- より高度な日本語検索が必要な場合は、pg_bigmやElasticsearchの利用を検討してください
+-- これなら LIKE '%キーワード%' でもインデックスが使われる。
+--
+-- 【実装演習】
+-- 1. 新しいマイグレーション V2__Add_trgm_index.sql を作成して上記SQLを記述
+-- 2. EXPLAIN ANALYZE SELECT ... WHERE title LIKE '%xxx%' で
+--    実行計画が Seq Scan → Bitmap Index Scan に変わることを確認してみよう
+-- （データが数十件程度だと、インデックスがあってもPostgreSQLが
+--   全件走査を選ぶことがある。その観察も含めて良い演習になる）
+--
+-- 【このインデックスを残している理由】
+-- 全文検索（@@）へのステップアップ教材として残している。
+-- 日本語の本格的な形態素解析には pg_bigm / pgroonga などの拡張が必要
+-- （postgres:16-alpine には含まれない）
 CREATE INDEX idx_memos_fulltext ON memos USING GIN (to_tsvector('simple', title || ' ' || content));
 
 -- ============================================
