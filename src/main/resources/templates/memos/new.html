@@ -22,21 +22,11 @@
 </head>
 
 <body>
-    <header>
-        <nav class="navbar">
-            <div class="container">
-                <a th:href="@{/memos}" class="navbar-brand">メモ帳アプリ</a>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a th:href="@{/memos}" class="nav-link">一覧</a>
-                    </li>
-                    <li class="nav-item">
-                        <a th:href="@{/memos/new}" class="nav-link active">新規作成</a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-    </header>
+    <!--
+        共通ヘッダー（部品の定義は fragments/parts.html を参照）
+        引数 'new' により「新規作成」のナビリンクに active クラスが付く
+    -->
+    <header th:replace="~{fragments/parts :: siteHeader('new')}"></header>
 
     <main class="container">
         <h1>メモ新規作成</h1>
@@ -169,13 +159,8 @@
         </form>
     </main>
 
-    <footer>
-        <div class="container">
-            <p th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|">
-                &copy; 2025 メモ帳アプリ
-            </p>
-        </div>
-    </footer>
+    <!-- 共通フッター（部品の定義は fragments/parts.html を参照） -->
+    <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
     <script th:src="@{/js/script.js}"></script>
 </body>
