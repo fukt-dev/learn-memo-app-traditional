@@ -304,19 +304,18 @@ function clearError(input) {
  * ============================================
  *
  * 削除ボタンをクリックした時の確認ダイアログ
- * HTMLのonclick属性でも実装できるが、JavaScriptで一元管理する
+ *
+ * 【HTMLのonclick属性ではなく、ここで一元管理する理由】
+ * onclick="return confirm(...)" でも同じことはできるが、
+ * - 削除ボタンが増えるたびに同じ属性をコピペすることになる
+ * - HTML（構造）とJavaScript（振る舞い）が混ざり、変更時の修正漏れが起きやすい
+ *
+ * 【落とし穴: 両方に書くとダイアログが2回出る】
+ * onclick の confirm と、このリスナーの confirm は別々に動くため、
+ * テンプレート側にも onclick を書くと確認ダイアログが2回表示される。
+ * 実装は必ずどちらか一方に寄せること（このアプリはJS側に統一）
  */
 function initDeleteConfirmation() {
-    /*
-     * この関数は、HTMLの onclick 属性と重複するため、
-     * 現在は使用していない
-     *
-     * HTMLでの実装:
-     * <button onclick="return confirm('本当に削除しますか？')">削除</button>
-     *
-     * JavaScriptでの実装例:
-     */
-
     const deleteForms = document.querySelectorAll('form[action*="/delete"]');
     /*
      * [action*="/delete"]

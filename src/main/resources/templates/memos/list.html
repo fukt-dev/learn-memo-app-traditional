@@ -41,23 +41,16 @@
 
 <body>
     <!-- ============================================
-         ヘッダー
+         ヘッダー（共通フラグメント）
          ============================================ -->
-    <header>
-        <nav class="navbar">
-            <div class="container">
-                <a th:href="@{/memos}" class="navbar-brand">メモ帳アプリ</a>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a th:href="@{/memos}" class="nav-link active">一覧</a>
-                    </li>
-                    <li class="nav-item">
-                        <a th:href="@{/memos/new}" class="nav-link">新規作成</a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-    </header>
+    <!--
+        th:replace="~{fragments/parts :: siteHeader('list')}"
+        → この<header>要素が、fragments/parts.html の siteHeader フラグメントに
+          丸ごと置き換えられる（部品の定義は fragments/parts.html を参照）
+
+        引数 'list' により「一覧」のナビリンクに active クラスが付く
+    -->
+    <header th:replace="~{fragments/parts :: siteHeader('list')}"></header>
 
     <!-- ============================================
          メインコンテンツ
@@ -274,17 +267,16 @@
                         なぜか: GETは安全な操作のみ（データを変更しない）
                         削除はデータを変更するのでPOSTを使う
                     -->
-                    <form th:action="@{/memos/{id}/delete(id=${memo.id})}" method="post" style="display: inline;">
-                        <!--
-                            onclick="return confirm('本当に削除しますか？')"
-                            → 削除前に確認ダイアログを表示
+                    <!--
+                        削除前の確認ダイアログは script.js の initDeleteConfirmation() が
+                        表示する（action に "/delete" を含むフォームの submit を監視）
 
-                            return confirm(...)
-                            → ユーザーが「OK」を押したら true、「キャンセル」を押したら false
-                            false の場合、フォームは送信されない
-                        -->
-                        <button type="submit" class="btn btn-sm btn-danger"
-                                onclick="return confirm('本当に削除しますか？')">
+                        【注意】
+                        ここに onclick="return confirm(...)" を書いてはいけない。
+                        JS側のリスナーと二重になり、ダイアログが2回表示されてしまう
+                    -->
+                    <form th:action="@{/memos/{id}/delete(id=${memo.id})}" method="post" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-danger">
                             削除
                         </button>
                     </form>
@@ -294,31 +286,9 @@
     </main>
 
     <!-- ============================================
-         フッター
+         フッター（共通フラグメント）
          ============================================ -->
-    <footer>
-        <div class="container">
-            <!--
-                th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|"
-                → リテラル置換
-
-                |...| で囲むと、文字列リテラルとして扱われる
-                その中に ${...} を含めることができる
-
-                ${#dates.year(#dates.createNow())}
-                → 現在の年を取得
-
-                #dates: 日付ユーティリティ
-                #dates.createNow(): 現在日時を作成
-                #dates.year(...): 年を取得
-
-                結果: "© 2025 メモ帳アプリ"
-            -->
-            <p th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|">
-                &copy; 2025 メモ帳アプリ
-            </p>
-        </div>
-    </footer>
+    <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
     <!-- JavaScript -->
     <script th:src="@{/js/script.js}"></script>

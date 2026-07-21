@@ -26,21 +26,11 @@
 </head>
 
 <body>
-    <header>
-        <nav class="navbar">
-            <div class="container">
-                <a th:href="@{/memos}" class="navbar-brand">メモ帳アプリ</a>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a th:href="@{/memos}" class="nav-link">一覧</a>
-                    </li>
-                    <li class="nav-item">
-                        <a th:href="@{/memos/new}" class="nav-link">新規作成</a>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-    </header>
+    <!--
+        共通ヘッダー（部品の定義は fragments/parts.html を参照）
+        引数 null = どのナビリンクもハイライトしない
+    -->
+    <header th:replace="~{fragments/parts :: siteHeader(null)}"></header>
 
     <main class="container">
         <h1>メモ編集</h1>
@@ -137,13 +127,8 @@
         </form>
     </main>
 
-    <footer>
-        <div class="container">
-            <p th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|">
-                &copy; 2025 メモ帳アプリ
-            </p>
-        </div>
-    </footer>
+    <!-- 共通フッター（部品の定義は fragments/parts.html を参照） -->
+    <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
 
     <script th:src="@{/js/script.js}"></script>
 </body>
@@ -219,9 +204,11 @@
     4. この画面が再表示される
        - ユーザーが入力した内容は保持されている
        - エラーメッセージが表示される
-       - 作成日時・更新日時も表示されたまま
+       - 作成日時・更新日時は、フォームから送信されない（hiddenにしていない）ため、
+         MemoController.update() がDBから取り直して再設定している
+         （再設定しないと日時欄が空で表示されてしまう）
 
-    重要: memoDtoにはIDが含まれているので、
-         フォームのaction URLも正しく生成される
-         th:action="@{/memos/{id}/update(id=${memoDto.id})}"
+    重要: IDも同様にフォームからは送信されないため、
+         Controller が memoDto.setId(id) で再設定している
+         （設定しないとフォームのaction URLが生成できずエラーになる）
 -->
