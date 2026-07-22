@@ -9,12 +9,11 @@ import java.time.LocalDateTime;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * MemoDto の変換ロジックの単体テスト
+ * MemoDto の変換ロジック(fromEntity / toEntity)の単体テスト。
  *
- * 【このテストの位置付け】
- * Entity ⇔ DTO の変換はフレームワークに依存しない純粋な Java ロジックなので、
- * モックも Spring も使わない「素の JUnit」でテストする。
- * 依存が少ないテストほど速く・壊れにくい(テストピラミッドの土台)
+ * この変換はフレームワークに依存しない純粋な Java ロジックなので、モックも Spring も使わず
+ * 素の JUnit で書く。依存が少ないほど速く壊れにくい(テストピラミッドの土台 → docs/解説/テスト.md)。
+ * このクラス固有の見どころは、日時 null ガードや「DTO→Entity で日時をコピーしない」契約の固定。
  */
 class MemoDtoTest {
 

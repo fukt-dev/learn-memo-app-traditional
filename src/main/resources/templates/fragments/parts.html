@@ -1,58 +1,27 @@
 <!DOCTYPE html>
 <!--
-    ============================================
-    共通フラグメント集（ヘッダー・フッター）
-    ============================================
+    共通フラグメント集（ヘッダー・フッター）。全画面共通のナビゲーションとフッターを1箇所で定義し、
+    各画面が th:replace で「部品」として取り込む。このファイル自体はビューとして返されず、部品だけが参照される。
 
-    【このファイルの役割】
-    全画面で共通のヘッダー（ナビゲーション）とフッターを1箇所で定義します
-    各画面はここから th:replace で「部品」を取り込みます
-
-    【th:fragment / th:replace とは】
-    Thymeleaf標準のテンプレート部品化機能
-
-    - th:fragment="名前(引数)" : この要素を「部品」として定義する
-    - th:replace="~{ファイルパス :: 部品名(値)}" : 呼び出し側の要素を部品で丸ごと置き換える
-
-    【なぜ共通化するのか】
-    ヘッダーやフッターを各HTMLにコピペしていると、
-    「ナビにリンクを1つ追加したいだけなのに5ファイル修正」になり、
-    修正漏れ（画面ごとにナビが違う事故）が起きやすい。
-    1箇所にまとめれば、修正は常にこのファイルだけで済む
-
-    【th:insert との違い】
-    - th:replace: 呼び出し側の要素ごと部品に置き換える（このアプリで使用）
-    - th:insert: 呼び出し側の要素の「中」に部品を挿入する（タグが1段増える）
-
-    【モダン版との対比】
-    React（learn-memo-app-modern）ではこれをコンポーネント（Layout.tsx など）で行う。
-    「共通部分を部品化して再利用する」という考え方は同じ
-
-    【このファイル自体は画面として表示されない】
-    Controllerから "fragments/parts" をビュー名として返すことはなく、
-    各テンプレートから部品だけが参照される
+    学習ポイント:
+    - th:fragment / th:replace によるテンプレート共通化の汎用解説 → docs/解説/Spring-MVCとThymeleaf.md
+    - なぜ共通化するか（コピペ排除・修正漏れ防止）と th:replace / th:insert の選択 → 下記コメント参照
+    - モダン版との対比: React（learn-memo-app-modern）では Layout.tsx などのコンポーネントが同じ役割を担う
 -->
 <html xmlns:th="http://www.thymeleaf.org" lang="ja">
 <body>
 
     <!--
-        ============================================
-        共通ヘッダー（ナビゲーションバー）
-        ============================================
+        共通ヘッダー（ナビゲーションバー）。
+        th:fragment="siteHeader(activeNav)" で、引数付きの部品として定義する。
+        引数 activeNav は「現在表示中の画面のナビリンクをハイライトする」ためのもの:
+        'list'→一覧, 'new'→新規作成, null→どれもハイライトしない（詳細・編集・エラー画面）。
+        呼び出し側の例: <header th:replace="~{fragments/parts :: siteHeader('list')}"></header>
 
-        【フラグメント定義】
-        th:fragment="siteHeader(activeNav)"
-        → "siteHeader" という名前の部品。引数 activeNav を受け取る
-
-        【引数 activeNav の役割】
-        「いま表示している画面」のナビリンクに active クラスを付けて
-        現在地をハイライトするための引数
-        - 'list' → 「一覧」がハイライト
-        - 'new'  → 「新規作成」がハイライト
-        - null   → どちらもハイライトしない（詳細・編集・エラー画面）
-
-        【使い方（呼び出し側）】
-        <header th:replace="~{fragments/parts :: siteHeader('list')}"></header>
+        【なぜ共通化するか】各 HTML にヘッダーをコピペすると「ナビに1リンク足すだけで5ファイル修正」になり、
+        修正漏れ（画面ごとにナビが違う事故）が起きる。1箇所に集約すれば、修正は常にこのファイルだけで済む。
+        【th:replace を選ぶ理由】th:replace は呼び出し側の要素ごと部品に置き換える。th:insert だと
+        呼び出し側の要素の「中」に挿入されタグが1段増えるため、ここでは th:replace を使う
     -->
     <header th:fragment="siteHeader(activeNav)">
         <nav class="navbar">
@@ -60,11 +29,7 @@
                 <a th:href="@{/memos}" class="navbar-brand">メモ帳アプリ</a>
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <!--
-                            th:classappend="式 ? 'active'"
-                            → 条件がtrueのときだけ active クラスを追加する
-                            （falseのときは何も追加されない）
-                        -->
+                        <!-- th:classappend="式 ? 'active'" は true のときだけ active を足す（false なら何も追加しない） -->
                         <a th:href="@{/memos}"
                            class="nav-link"
                            th:classappend="${activeNav == 'list'} ? 'active'">一覧</a>
@@ -80,22 +45,14 @@
     </header>
 
     <!--
-        ============================================
-        共通フッター
-        ============================================
-
-        【フラグメント定義】
-        引数が不要な部品は th:fragment="siteFooter" のように名前だけで定義できる
-
-        【使い方（呼び出し側）】
-        <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
+        共通フッター。引数が不要な部品は th:fragment="siteFooter" と名前だけで定義できる。
+        呼び出し側の例: <footer th:replace="~{fragments/parts :: siteFooter}"></footer>
     -->
     <footer th:fragment="siteFooter">
         <div class="container">
             <!--
-                |...| はリテラル置換（文字列の中に ${...} を埋め込める記法）
-                ${#dates.year(#dates.createNow())} で現在の年を取得
-                → 年が変わってもフッターの修正が不要になる
+                |...| はリテラル置換（文字列の中に ${...} を埋め込む記法）。
+                #dates.year(#dates.createNow()) で現在の年を出すので、年が変わってもフッターの修正が不要
             -->
             <p th:text="|&copy; ${#dates.year(#dates.createNow())} メモ帳アプリ|">
                 &copy; 2025 メモ帳アプリ
