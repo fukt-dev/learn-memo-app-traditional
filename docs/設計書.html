@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>メモ帳アプリケーション 設計書（従来型）</title>
+<style>
+  :root {
+    --ink: #111827;
+    --sub: #374151;
+    --accent: #4338ca;
+    --trad: #b45309;   /* 従来型 = 琥珀 */
+    --trad-bg: #fffbeb;
+    --modern: #0e7490; /* モダン = シアン */
+    --modern-bg: #ecfeff;
+    --line: #cbd5e1;
+    --paper: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: #e2e8f0; scroll-behavior: smooth; }
+  body {
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Yu Gothic Medium", "Yu Gothic", sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.75;
+  }
+  /* ---- 画面表示: 紙面カラム + サイドバー目次(印刷時は通常レイアウトに戻す) ----
+     body を flex にし、左 = 紙面カラム(.paper-area、ここにスクロールバーが付く)、
+     右 = 目次(.toc)。スクロールバーがシートのすぐ横に出て、余白に目次が常駐する */
+  body { display: flex; height: 100vh; overflow: hidden; }
+  .paper-area { flex: 0 1 auto; min-width: 0; overflow: auto; scroll-behavior: smooth; order: 1; }
+  .toc {
+    order: 2;
+    flex: 1 1 auto;
+    min-width: 150px;
+    max-width: 260px;
+    align-self: flex-start;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    margin: 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .12);
+    font-size: 9pt;
+    line-height: 1.5;
+  }
+  .toc-title { font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .toc a { display: block; color: var(--ink); text-decoration: none; padding: 2px 0; }
+  .toc a:hover { color: var(--accent); background: #eef2ff; }
+  /* 目次カラムの置き場が無い狭い画面では、目次なしの通常レイアウトに戻す */
+  @media (max-width: 1290px) {
+    .toc { display: none; }
+    body { display: block; height: auto; overflow: visible; }
+    .paper-area { overflow: visible; }
+  }
+  @media print {
+    .toc { display: none; }
+    body { display: block; height: auto; overflow: visible; }
+    .paper-area { overflow: visible; }
+  }
+  /* ---- A4 横のシート ---- */
+  .sheet {
+    width: 297mm;
+    min-height: 210mm;
+    background: var(--paper);
+    margin: 8mm auto;
+    padding: 14mm 16mm 18mm;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, .25);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-body { flex: 1; }
+  .cols { column-count: 2; column-gap: 12mm; column-rule: 1px solid #eef2f7; }
+  .footer {
+    margin-top: 6mm;
+    padding-top: 2.5mm;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between;
+    font-size: 8pt; color: var(--sub);
+  }
+  /* ---- 見出し ---- */
+  .chapter-tag {
+    display: inline-block;
+    background: var(--accent); color: #fff;
+    font-size: 9pt; font-weight: 700;
+    padding: 1mm 4mm; border-radius: 2mm;
+    margin-bottom: 3mm; letter-spacing: .1em;
+  }
+  h1 { font-size: 19pt; margin-bottom: 2mm; line-height: 1.4; }
+  .goal {
+    background: #eef2ff; border-left: 4px solid var(--accent);
+    padding: 2.5mm 5mm; margin: 3mm 0 5mm;
+    font-size: 10pt; border-radius: 0 1.5mm 1.5mm 0;
+  }
+  .goal b { color: var(--accent); }
+  h2 {
+    font-size: 12pt; color: var(--accent);
+    margin: 4.5mm 0 2mm;
+    padding-bottom: 1mm; border-bottom: 2px solid #e0e7ff;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 10.5pt; color: var(--ink);
+    margin: 3mm 0 1.5mm; break-after: avoid;
+  }
+  .sheet-body > .cols > h2:first-child, .sheet-body > h2:first-child { margin-top: 0; }
+  p { margin-bottom: 2.5mm; text-align: justify; }
+  ul, ol { margin: 0 0 2.5mm 5.5mm; }
+  li { margin-bottom: 1mm; }
+  b { font-weight: 700; }
+  /* ---- 表 ---- */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 8.5pt; margin: 2mm 0 3.5mm;
+    break-inside: avoid; line-height: 1.55;
+  }
+  th, td { border: 1px solid var(--line); padding: 1.4mm 2.5mm; text-align: left; vertical-align: top; }
+  th { background: #f1f5f9; font-weight: 700; white-space: nowrap; }
+  td.trad, th.trad { background: var(--trad-bg); }
+  td.modern, th.modern { background: var(--modern-bg); }
+  /* ---- コード ---- */
+  code {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: .92em; background: #f1f5f9;
+    padding: 0 1mm; border-radius: 1mm;
+  }
+  pre {
+    background: #0f172a; color: #e2e8f0;
+    font-family: Consolas, monospace; font-size: 8.5pt;
+    line-height: 1.6; padding: 3mm 4mm;
+    border-radius: 2mm; margin: 2mm 0 3.5mm;
+    white-space: pre-wrap; word-break: break-all;
+    break-inside: avoid;
+  }
+  pre .cm { color: #94a3b8; }
+  /* ---- 図(フロー) ---- */
+  .flow {
+    background: #f8fafc; border: 1px solid var(--line);
+    border-radius: 2mm; padding: 3mm 4mm;
+    font-family: Consolas, monospace; font-size: 8.5pt;
+    line-height: 1.8; white-space: pre;
+    margin: 2mm 0 3.5mm; break-inside: avoid;
+    overflow-x: auto;
+  }
+  .flow.sm { font-size: 7.5pt; line-height: 1.3; }
+  /* ---- チェックリスト ---- */
+  .check {
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    border-radius: 2mm; padding: 2.5mm 4mm 1.5mm;
+    margin-top: 3mm; break-inside: avoid;
+  }
+  .check .ttl { font-weight: 700; color: #15803d; font-size: 9.5pt; margin-bottom: 1mm; }
+  .check ul { list-style: none; margin-left: 0; }
+  .check li { padding-left: 6.5mm; position: relative; font-size: 9.5pt; }
+  .check li::before {
+    content: ""; position: absolute; left: 0; top: 1.6mm;
+    width: 3.2mm; height: 3.2mm;
+    border: 1.5px solid #16a34a; border-radius: .8mm;
+  }
+  /* ---- バッジ ---- */
+  .badge { display: inline-block; font-size: 8pt; font-weight: 700; padding: .2mm 2.2mm; border-radius: 1mm; margin-right: 1mm; }
+  .badge.t { background: var(--trad-bg); color: var(--trad); border: 1px solid var(--trad); }
+  .badge.m { background: var(--modern-bg); color: var(--modern); border: 1px solid var(--modern); }
+  .note {
+    background: #fef2f2; border-left: 4px solid #dc2626;
+    padding: 2mm 4mm; margin: 2mm 0 3mm;
+    font-size: 9pt; border-radius: 0 1.5mm 1.5mm 0;
+    break-inside: avoid;
+  }
+  /* ---- 表紙 ---- */
+  .cover { justify-content: center; text-align: center; }
+  .cover .sheet-body { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .cover h1 { font-size: 30pt; color: var(--accent); margin: 4mm 0 2mm; }
+  .cover .subtitle { font-size: 13pt; color: var(--sub); margin-bottom: 10mm; }
+  .cover table { width: 210mm; font-size: 10pt; text-align: left; }
+  /* ---- 印刷 ---- */
+  @media print {
+    @page { size: A4 landscape; margin: 0; }
+    html { background: none; }
+    .sheet { margin: 0; box-shadow: none; page-break-after: always; width: 297mm; min-height: 209mm; }
+    .sheet:last-child { page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="toc">
+  <div class="toc-title">目次</div>
+  <a href="#">表紙</a>
+  <a href="#intro">はじめに・目次</a>
+  <a href="#ch1">第 1 章 システム概要</a>
+  <a href="#ch2">第 2 章 アーキテクチャ設計</a>
+  <a href="#ch3">第 3 章 機能要件</a>
+  <a href="#ch4">第 4 章 非機能要件</a>
+  <a href="#ch5">第 5 章 データベース設計</a>
+  <a href="#ch6">第 6 章 画面設計</a>
+  <a href="#ch7">第 7 章 ディレクトリ構成</a>
+  <a href="#ch8">第 8 章 技術スタック</a>
+  <a href="#ch9">第 9 章 クラス設計</a>
+  <a href="#ch10">第 10 章 設定ファイル</a>
+  <a href="#ch11">第 11 章 テスト設計</a>
+  <a href="#ch12">第 12 章 実装状況と今後の演習</a>
+  <a href="#ch13">第 13 章 学習ガイダンス</a>
+  <a href="#appendix">付録</a>
+</nav>
+
+<div class="paper-area">
+
+<!-- ============ 表紙 ============ -->
+<section class="sheet cover">
+  <div class="sheet-body">
+    <div class="chapter-tag">learn-memo-app-traditional</div>
+    <h1>メモ帳アプリケーション<br>設計書（従来型）</h1>
+    <div class="subtitle">従来型 MVC（サーバーサイドレンダリング）／ 3 層レイヤーアーキテクチャ</div>
+    <table>
+      <tr><th style="width:38mm">本書の位置付け</th><td>「設計書を読んでからコードを読む」学習フローの起点となるドキュメント。2026-07 のコードレビュー対応（Issue #8）完了後の<b>実装と同期</b>しています</td></tr>
+      <tr><th>大原則</th><td>コードと本書が食い違う場合は<b>コードを正</b>とし、本書を修正してください（実装と食い違うドキュメントはバグと同格）</td></tr>
+      <tr><th>技術構成</th><td>Java 17 / Spring Boot 3.5.16 / MyBatis + 2waySQL / Thymeleaf / PostgreSQL 16 / Flyway</td></tr>
+      <tr><th>対象読者</th><td>Web アプリケーション開発の学習を始めた初心者、従来型 MVC アーキテクチャや実務の 2waySQL を学びたい開発者</td></tr>
+      <tr><th>ドキュメントバージョン</th><td>3.0.0（最終更新日 2026-07-21）</td></tr>
+    </table>
+  </div>
+  <div class="footer"><span>メモ帳アプリケーション 設計書（従来型）</span><span>表紙</span></div>
+</section>
+
+<!-- ============ 本書について + 目次 ============ -->
+<section class="sheet" id="intro">
+  <div class="sheet-body">
+    <div class="chapter-tag">はじめに</div>
+    <h1>本書について・目次</h1>
+    <div class="cols">
+      <h2>本書の読み方</h2>
+      <p>本書は「設計書を読んでからコードを読む」学習フローの起点となるドキュメントです。
+      2026-07 のコードレビュー対応（Issue #8）完了後の<b>実装と同期</b>しています。</p>
+      <div class="note">コードと本書が食い違う場合は<b>コードを正</b>とし、本書を修正してください（実装と食い違うドキュメントはバグと同格）。</div>
+      <p>まず環境構築を終えてアプリを実際に動かし、本書で全体像（3 層の役割・URL 設計・DB 設計）を掴んでから、
+      Controller → Service → Mapper の順にコードを読み進めるのが推奨ルートです。詳しくは §13「学習ガイダンス」を参照してください。</p>
+      <h2>目次</h2>
+      <table>
+        <tr><th style="width:12mm">章</th><th>タイトル</th><th style="width:18mm">ページ</th></tr>
+        <tr><td>1</td><td>システム概要</td><td>2</td></tr>
+        <tr><td>2</td><td>アーキテクチャ設計</td><td>3</td></tr>
+        <tr><td>3</td><td>機能要件</td><td>5</td></tr>
+        <tr><td>4</td><td>非機能要件</td><td>7</td></tr>
+        <tr><td>5</td><td>データベース設計</td><td>8</td></tr>
+        <tr><td>6</td><td>画面設計</td><td>10</td></tr>
+        <tr><td>7</td><td>ディレクトリ構成</td><td>13</td></tr>
+        <tr><td>8</td><td>技術スタック</td><td>15</td></tr>
+        <tr><td>9</td><td>クラス設計</td><td>16</td></tr>
+        <tr><td>10</td><td>設定ファイル</td><td>21</td></tr>
+        <tr><td>11</td><td>テスト設計</td><td>22</td></tr>
+        <tr><td>12</td><td>実装状況と今後の演習</td><td>23</td></tr>
+        <tr><td>13</td><td>学習ガイダンス</td><td>24</td></tr>
+        <tr><td>付録</td><td>用語集 / トラブルシューティング / 便利なコマンド</td><td>26</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>メモ帳アプリケーション 設計書（従来型）</span><span>1</span></div>
+</section>
+
+<!-- ============ 1. システム概要 ============ -->
+<section class="sheet" id="ch1">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 1 章</div>
+    <h1>システム概要</h1>
+    <div class="cols">
+      <h2>1.1 目的</h2>
+      <p>本アプリケーションは、開発未経験者が Web アプリケーション開発の基礎を学ぶための教材として、
+      基本的な CRUD 操作を実装したメモ帳アプリケーションです。
+      従来型のサーバーサイドレンダリング（MVC）構成を採用し、3 層レイヤーアーキテクチャで実装しています。</p>
+      <p><b>実務を意識した技術選定</b>:</p>
+      <ul>
+        <li><b>PostgreSQL</b>: エンタープライズ開発で広く採用されている RDBMS</li>
+        <li><b>MyBatis + 2waySQL</b>: 日本の業務システム開発で標準的に使われる技術</li>
+        <li><b>Flyway</b>: データベースマイグレーション管理（実務必須スキル）</li>
+      </ul>
+      <h2>1.2 対象ユーザー</h2>
+      <ul>
+        <li>Web アプリケーション開発の学習を始めたばかりの初心者</li>
+        <li>従来型の MVC アーキテクチャを学びたい開発者</li>
+        <li>Java / Spring Boot の基礎を学びたい開発者</li>
+        <li>実務で使われる 2waySQL（MyBatis）を習得したい開発者</li>
+      </ul>
+      <h2>1.3 主な機能</h2>
+      <table>
+        <tr><th>機能</th><th style="width:36mm">状態</th></tr>
+        <tr><td>メモの新規作成</td><td>実装済み</td></tr>
+        <tr><td>メモの一覧表示</td><td>実装済み</td></tr>
+        <tr><td>メモの詳細表示</td><td>実装済み</td></tr>
+        <tr><td>メモの編集</td><td>実装済み</td></tr>
+        <tr><td>メモの削除（確認ダイアログあり）</td><td>実装済み</td></tr>
+        <tr><td>メモの検索(キーワード部分一致)</td><td>実装済み</td></tr>
+        <tr><td>ページング</td><td>未実装（Service/Mapper の部品のみ用意。実装演習）</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>第 1 章 システム概要</span><span>2</span></div>
+</section>
+
+<!-- ============ 2. アーキテクチャ設計 ============ -->
+<section class="sheet" id="ch2">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 2 章</div>
+    <h1>アーキテクチャ設計</h1>
+    <div class="cols">
+      <h2>2.1 3 層レイヤーアーキテクチャ</h2>
+      <div class="flow sm">┌─────────────────────────────────────┐
+│    プレゼンテーション層              │
+│  (Presentation Layer)               │
+│  - Controller                       │
+│  - Thymeleaf (View)                 │
+│  - JavaScript (Vanilla)             │
+└─────────────────────────────────────┘
+              ↓↑
+┌─────────────────────────────────────┐
+│    ビジネスロジック層                │
+│  (Business Logic Layer)             │
+│  - Service                          │
+│  - DTO (Data Transfer Object)       │
+└─────────────────────────────────────┘
+              ↓↑
+┌─────────────────────────────────────┐
+│    データアクセス層                  │
+│  (Data Access Layer)                │
+│  - Mapper (MyBatis)                 │
+│  - SQL (2waySQL in XML)             │
+│  - Entity                           │
+│  - Database (PostgreSQL)            │
+└─────────────────────────────────────┘</div>
+      <h3>2.1.1 プレゼンテーション層</h3>
+      <p><b>責務</b>: ユーザーとのインタラクション、画面表示、入力値の受け取り。</p>
+      <ul>
+        <li><b>Controller</b>: HTTP リクエストを受け取り、Service を呼び出し、View に渡すデータを準備</li>
+        <li><b>Thymeleaf</b>: HTML を生成するテンプレートエンジン。共通部品は <code>th:fragment</code> / <code>th:replace</code> で共通化</li>
+        <li><b>JavaScript (Vanilla)</b>: フレームワークや jQuery を使わない素の JavaScript。削除確認ダイアログ・クライアントサイドバリデーション・フラッシュメッセージの自動非表示を実装</li>
+      </ul>
+      <h3>2.1.2 ビジネスロジック層</h3>
+      <p><b>責務</b>: ビジネスルールの実装、トランザクション管理、データの加工。</p>
+      <ul>
+        <li><b>Service</b>: ビジネスロジックを実装するクラス</li>
+        <li><b>DTO</b>: 層間でデータを受け渡すためのオブジェクト</li>
+      </ul>
+      <h3>2.1.3 データアクセス層</h3>
+      <p><b>責務</b>: データベースへのアクセス、永続化処理。</p>
+      <ul>
+        <li><b>Mapper</b>: MyBatis の Mapper インターフェース（データベース操作の定義）</li>
+        <li><b>SQL</b>: XML ファイルに記述された 2waySQL</li>
+        <li><b>Entity</b>: データベーステーブルに対応する Java オブジェクト</li>
+        <li><b>Database</b>: PostgreSQL（実際のデータ格納先）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 2 章 アーキテクチャ設計</span><span>3</span></div>
+</section>
+
+<!-- ============ 2.2 技術選定の理由 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 2 章（続き）</div>
+    <h1>2.2 技術選定の理由</h1>
+    <div class="cols">
+      <h3>なぜ PostgreSQL か？</h3>
+      <ol>
+        <li><b>エンタープライズでの採用実績</b>: 金融・公共システムなどで広く使われている</li>
+        <li><b>機能の豊富さ</b>: トランザクション、JSON 型、全文検索など</li>
+        <li><b>標準 SQL 準拠</b>: SQL 標準に忠実で移植性が高い</li>
+        <li><b>オープンソース</b>: 商用利用も可能でライセンスコストがかからない</li>
+      </ol>
+      <h3>なぜ MyBatis + 2waySQL か？</h3>
+      <ol>
+        <li><b>実務での標準</b>: 日本の業務システム開発で広く採用されている</li>
+        <li><b>SQL の可視性</b>: SQL を直接記述するため、パフォーマンスチューニングが容易</li>
+        <li><b>複雑なクエリへの対応</b>: ORM では表現しにくい複雑な JOIN やサブクエリも自由に記述</li>
+        <li><b>2waySQL</b>: 動的な SQL とテスト可能な静的 SQL を両立</li>
+      </ol>
+      <h3>なぜ Flyway によるマイグレーション管理か？</h3>
+      <ol>
+        <li><b>SQL の学習機会</b>: マイグレーションファイルを手書きするため、SQL 学習が阻害されない</li>
+        <li><b>バージョン管理</b>: データベーススキーマの変更履歴を管理できる</li>
+        <li><b>チーム開発</b>: 開発者間でデータベース構造を同期できる</li>
+        <li><b>実務スキル</b>: 実際のプロジェクトで必須の技術</li>
+      </ol>
+      <div class="note"><b>重要</b>: <code>ddl-auto: update</code> のような完全自動生成は使用せず、<b>マイグレーションファイルを手書き</b>します。マイグレーションは<b>アプリケーション起動時に自動実行</b>されます（Maven コマンドによる手動実行は本プロジェクトでは構成していません。詳細は §10 設定ファイルを参照）。</div>
+      <h3>なぜサーバーサイドレンダリング（MVC）か？</h3>
+      <ol>
+        <li><b>シンプルさ</b>: クライアント側の複雑な状態管理が不要</li>
+        <li><b>学習曲線</b>: フロントエンドフレームワークの習得が不要</li>
+        <li><b>従来型の理解</b>: モダン構成（learn-memo-app-modern）との比較学習のベースライン</li>
+      </ol>
+    </div>
+  </div>
+  <div class="footer"><span>第 2 章 アーキテクチャ設計</span><span>4</span></div>
+</section>
+
+<!-- ============ 3. 機能要件 ============ -->
+<section class="sheet" id="ch3">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 3 章</div>
+    <h1>機能要件</h1>
+    <div class="cols">
+      <h2>3.1 機能一覧</h2>
+      <table>
+        <tr><th>機能ID</th><th>機能名</th><th>状態</th><th>説明</th></tr>
+        <tr><td>F001</td><td>メモ一覧表示</td><td>実装済み</td><td>登録されているすべてのメモを一覧表示する</td></tr>
+        <tr><td>F002</td><td>メモ詳細表示</td><td>実装済み</td><td>選択したメモの詳細を表示する</td></tr>
+        <tr><td>F003</td><td>メモ新規作成</td><td>実装済み</td><td>新しいメモを作成する</td></tr>
+        <tr><td>F004</td><td>メモ編集</td><td>実装済み</td><td>既存のメモを編集する</td></tr>
+        <tr><td>F005</td><td>メモ削除</td><td>実装済み</td><td>既存のメモを削除する（削除確認あり）</td></tr>
+        <tr><td>F006</td><td>メモ検索</td><td>実装済み</td><td>タイトルまたは内容でメモを検索する</td></tr>
+        <tr><td>F007</td><td>ページング</td><td>実装演習</td><td>一覧表示時にページング機能を提供する</td></tr>
+        <tr><td>F008</td><td>カテゴリー分類</td><td>将来拡張</td><td>メモをカテゴリーで分類する</td></tr>
+      </table>
+      <h2>3.2 機能詳細仕様</h2>
+      <h3>F001: メモ一覧表示</h3>
+      <ul>
+        <li><b>入力</b>: なし</li>
+        <li><b>処理</b>: (1) データベースからすべてのメモを取得 (2) 作成日時の降順（新しい順）でソート (3) 一覧画面に表示（本文は 100 文字で省略表示）</li>
+        <li><b>出力</b>: メモ一覧（タイトル、作成日時、本文プレビュー）</li>
+        <li><b>例外処理</b>: データベース接続エラー時はエラーメッセージを表示（500）</li>
+      </ul>
+      <h3>F002: メモ詳細表示</h3>
+      <ul>
+        <li><b>入力</b>: メモ ID（URL パス）</li>
+        <li><b>処理</b>: (1) 指定された ID のメモをデータベースから取得 (2) 詳細画面に表示</li>
+        <li><b>出力</b>: メモ詳細（タイトル、内容、作成日時、更新日時）</li>
+        <li><b>例外処理</b>: メモが存在しない場合は 404 エラー画面を表示</li>
+      </ul>
+      <h3>F003: メモ新規作成</h3>
+      <ul>
+        <li><b>入力</b>: タイトル、本文</li>
+        <li><b>処理</b>: (1) 入力値のバリデーション (2) データベースに保存（作成日時・更新日時は DB 側の DEFAULT で自動設定） (3) 一覧画面にリダイレクト（PRG パターン）</li>
+        <li><b>出力</b>: 作成成功メッセージ（フラッシュメッセージ）、一覧画面への遷移</li>
+        <li><b>バリデーション</b>: タイトル = <b>必須、1〜200 文字</b>（DB の <code>VARCHAR(200)</code> に対応）／ 本文 = <b>必須</b>、文字数制限なし（DB の <code>TEXT</code> 型に対応）</li>
+        <li><b>例外処理</b>: バリデーションエラー時は入力値を保持して再表示</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 3 章 機能要件</span><span>5</span></div>
+</section>
+
+<!-- ============ 3.2 続き（F004-F006） ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 3 章（続き）</div>
+    <h1>3.2 機能詳細仕様（続き）</h1>
+    <div class="cols">
+      <h3>F004: メモ編集</h3>
+      <ul>
+        <li><b>入力</b>: メモ ID（URL パス）、タイトル、本文</li>
+        <li><b>処理</b>: (1) 指定された ID のメモをデータベースから取得（存在チェック） (2) 入力値のバリデーション (3) データベースを更新（更新日時は DB トリガーで自動更新） (4) 詳細画面にリダイレクト</li>
+        <li><b>出力</b>: 更新成功メッセージ、詳細画面への遷移</li>
+        <li><b>バリデーション</b>: F003 と同じ</li>
+        <li><b>例外処理</b>: メモが存在しない場合は 404 エラー。バリデーションエラー時は入力値を保持して再表示（作成・更新日時はサーバー側で再取得して表示を維持）</li>
+      </ul>
+      <h3>F005: メモ削除</h3>
+      <ul>
+        <li><b>入力</b>: メモ ID（URL パス）</li>
+        <li><b>処理</b>: (1) JavaScript（script.js の <code>initDeleteConfirmation()</code>）で削除確認ダイアログを表示 (2) ユーザーが OK を押した場合のみ削除リクエストを送信 (3) 指定された ID のメモをデータベースから削除 (4) 一覧画面にリダイレクト</li>
+        <li><b>出力</b>: 削除成功メッセージ、一覧画面への遷移</li>
+        <li><b>例外処理</b>: メモが存在しない場合は 404 エラー</li>
+      </ul>
+      <h3>F006: メモ検索</h3>
+      <ul>
+        <li><b>入力</b>: 検索キーワード（クエリパラメータ <code>keyword</code>）</li>
+        <li><b>処理</b>: (1) タイトルまたは本文にキーワードを含むメモを LIKE 部分一致で取得 (2) キーワードが空・未指定の場合は全件取得（判断は Service 層が担う） (3) 一覧画面に検索結果を表示</li>
+        <li><b>出力</b>: 検索結果のメモ一覧</li>
+        <li><b>例外処理</b>: 検索結果が 0 件の場合は「メモがありません」を表示</li>
+        <li><b>既知の制限</b>: LIKE のワイルドカード文字（<code>%</code> <code>_</code>）はエスケープしていない（詳細は <code>MemoMapper.xml</code> のコメント参照）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 3 章 機能要件</span><span>6</span></div>
+</section>
+
+<!-- ============ 4. 非機能要件 ============ -->
+<section class="sheet" id="ch4">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章</div>
+    <h1>非機能要件</h1>
+    <div class="cols">
+      <h2>4.1 パフォーマンス要件</h2>
+      <ul>
+        <li>一覧画面の初期表示: 3 秒以内</li>
+        <li>CRUD 操作のレスポンス: 1 秒以内</li>
+        <li>同時アクセス: 10 ユーザーまで（学習用のため）</li>
+      </ul>
+      <h2>4.2 可用性要件</h2>
+      <ul>
+        <li>学習用のため、高可用性は求めない</li>
+        <li>ローカル環境での動作を前提</li>
+      </ul>
+      <h2>4.3 セキュリティ要件</h2>
+      <ul>
+        <li><b>XSS 対策</b>: Thymeleaf の自動エスケープ機能を使用</li>
+        <li><b>SQL インジェクション対策</b>: MyBatis のプリペアドステートメント（<code>#{}</code> 記法）を使用</li>
+        <li><b>CSRF 対策</b>: 未実装（Spring Security 導入時の学習課題）</li>
+        <li><b>認証・認可</b>: 未実装（将来の拡張として）</li>
+      </ul>
+      <h2>4.4 保守性要件</h2>
+      <ul>
+        <li><b>コードの可読性</b>: 初心者が理解できるシンプルなコード</li>
+        <li><b>コメント</b>: 教育目的の詳細な日本語コメント（Why・仕組み・落とし穴を中心に記載）</li>
+        <li><b>ログ出力</b>: エラー発生時の原因特定が容易なログ設計（404 系は WARN、システム異常は ERROR）</li>
+        <li><b>SQL の可視性</b>: 2waySQL により SQL が明示的で保守しやすい</li>
+      </ul>
+      <h2>4.5 移植性要件</h2>
+      <ul>
+        <li><b>OS</b>: Windows、macOS、Linux で動作</li>
+        <li><b>データベース</b>: PostgreSQL 16（docker-compose.yml は <code>postgres:16-alpine</code> を使用）</li>
+        <li><b>Java</b>: Java 17 以上</li>
+        <li><b>ブラウザ</b>: Chrome、Firefox、Edge、Safari（最新版）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 非機能要件</span><span>7</span></div>
+</section>
+
+<!-- ============ 5. データベース設計 (5.1/5.2) ============ -->
+<section class="sheet" id="ch5">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 5 章</div>
+    <h1>データベース設計</h1>
+    <h2>5.1 ER 図</h2>
+    <div class="flow sm">┌─────────────────────┐
+│      memos          │
+├─────────────────────┤
+│ id (PK)             │ BIGSERIAL
+│ title               │ VARCHAR(200) NOT NULL
+│ content             │ TEXT NOT NULL
+│ created_at          │ TIMESTAMP NOT NULL
+│ updated_at          │ TIMESTAMP NOT NULL
+└─────────────────────┘</div>
+    <h2>5.2 テーブル定義（memos テーブル）</h2>
+    <table>
+      <tr><th>カラム名</th><th>データ型</th><th>NULL 許可</th><th>デフォルト値</th><th>説明</th></tr>
+      <tr><td>id</td><td>BIGSERIAL</td><td>NO</td><td>自動採番</td><td>主キー、メモ ID</td></tr>
+      <tr><td>title</td><td>VARCHAR(200)</td><td>NO</td><td>-</td><td>メモのタイトル</td></tr>
+      <tr><td>content</td><td>TEXT</td><td>NO</td><td>-</td><td>メモの本文</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMP</td><td>NO</td><td>CURRENT_TIMESTAMP</td><td>作成日時</td></tr>
+      <tr><td>updated_at</td><td>TIMESTAMP</td><td>NO</td><td>CURRENT_TIMESTAMP</td><td>更新日時（トリガーで自動更新）</td></tr>
+    </table>
+  </div>
+  <div class="footer"><span>第 5 章 データベース設計</span><span>8</span></div>
+</section>
+
+<!-- ============ 5.3 / 5.4 / 5.5 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 5 章（続き）</div>
+    <h1>5.3 インデックス設計・5.4 DDL・5.5 PostgreSQL 特有の機能</h1>
+    <h2>5.3 インデックス設計</h2>
+    <table>
+      <tr><th>インデックス名</th><th>カラム</th><th>種類</th><th>目的</th></tr>
+      <tr><td>（主キー）</td><td>id</td><td>PRIMARY KEY</td><td>主キー</td></tr>
+      <tr><td>idx_memos_created_at</td><td>created_at DESC</td><td>B-tree</td><td>一覧表示時のソート用</td></tr>
+      <tr><td>idx_memos_fulltext</td><td>to_tsvector('simple', title || ' ' || content)</td><td>GIN</td><td>全文検索（<code>@@</code> 演算子）用</td></tr>
+    </table>
+    <div class="note"><b>重要（学習ポイント）</b>: <code>idx_memos_fulltext</code> は全文検索演算子（<code>@@</code>）専用のインデックスであり、現在の検索機能（LIKE 部分一致）からは<b>使われません</b>。LIKE 検索を高速化するには <code>pg_trgm</code> 拡張 + <code>gin_trgm_ops</code> のインデックスが必要です（実装演習。<code>V1__Create_memos_table.sql</code> のコメント参照）。</div>
+    <h2>5.4 DDL（Flyway マイグレーション）・5.5 PostgreSQL 特有の機能</h2>
+    <p>マイグレーションファイルは 1 本のみです（<code>src/main/resources/db/migration/V1__Create_memos_table.sql</code>）。内容は memos テーブル・インデックス 2 本・updated_at 自動更新トリガー・コメントの作成です。DDL の全文と詳細な解説は実ファイルを参照してください。<b>実行タイミング</b>: アプリケーション起動時に Flyway が自動実行します（実行履歴は <code>flyway_schema_history</code> テーブルに記録され、適用済みのファイルは再実行されません）。</p>
+    <div class="note"><b>注意（checksum）</b>: 適用済みのマイグレーションファイルを書き換えると、次回起動時に checksum mismatch エラーになります。学習環境では <code>docker compose down -v</code> で DB をリセットしてください。</div>
+    <p>PostgreSQL 特有の機能（このプロジェクトで学べるもの）: <b>BIGSERIAL 型</b>（自動採番。MySQL の <code>BIGINT AUTO_INCREMENT</code> 相当）／ <b>トリガー</b>（<code>updated_at</code> の自動更新。MySQL の <code>ON UPDATE CURRENT_TIMESTAMP</code> 相当）／ <b>GIN インデックス + to_tsvector</b>（全文検索の仕組み。現状は教材として作成のみ）／ <b>pg_trgm 拡張</b>（実装演習。トライグラムによる LIKE 部分一致の高速化）。</p>
+  </div>
+  <div class="footer"><span>第 5 章 データベース設計</span><span>9</span></div>
+</section>
+
+<!-- ============ 6. 画面設計 (6.1) ============ -->
+<section class="sheet" id="ch6">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章</div>
+    <h1>画面設計</h1>
+    <h2>6.1 画面遷移図</h2>
+    <div class="flow sm">        ┌──────────────┐
+        │  メモ一覧    │ ← トップページ (/memos)
+        │  (list)      │
+        └──────────────┘
+         │  │  │  │
+         │  │  │  └── [削除] 確認ダイアログ → POST /memos/{id}/delete → 一覧へ
+         │  │  │
+         │  │  └───── [編集] ┌──────────┐
+         │  │                │ メモ編集 │ → 更新後、詳細へ
+         │  │                │ (edit)   │
+         │  │                └──────────┘
+         │  │
+         │  └── [タイトル/詳細] ┌──────────┐
+         │                      │ メモ詳細 │ →（編集・削除も可能）
+         │                      │ (show)   │
+         │                      └──────────┘
+         │
+         └── [新規作成] ┌──────────┐
+                        │ メモ新規 │ → 保存後、一覧へ
+                        │ (new)    │
+                        └──────────┘</div>
+  </div>
+  <div class="footer"><span>第 6 章 画面設計</span><span>10</span></div>
+</section>
+
+<!-- ============ 6.2 URL設計 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.2 URL 設計（ルーティング）</h1>
+    <table>
+      <tr><th>画面/処理</th><th>HTTP メソッド</th><th>URL</th><th>説明</th></tr>
+      <tr><td>メモ一覧</td><td>GET</td><td>/memos</td><td>メモ一覧を表示</td></tr>
+      <tr><td>メモ一覧（検索）</td><td>GET</td><td>/memos?keyword={keyword}</td><td>キーワード検索結果を表示</td></tr>
+      <tr><td>メモ詳細</td><td>GET</td><td>/memos/{id}</td><td>指定 ID のメモ詳細を表示</td></tr>
+      <tr><td>メモ新規作成フォーム</td><td>GET</td><td>/memos/new</td><td>新規作成フォームを表示</td></tr>
+      <tr><td>メモ新規作成処理</td><td>POST</td><td>/memos</td><td>メモを新規作成</td></tr>
+      <tr><td>メモ編集フォーム</td><td>GET</td><td>/memos/{id}/edit</td><td>編集フォームを表示</td></tr>
+      <tr><td>メモ更新処理</td><td>POST</td><td>/memos/{id}/update</td><td>メモを更新</td></tr>
+      <tr><td>メモ削除処理</td><td>POST</td><td>/memos/{id}/delete</td><td>メモを削除</td></tr>
+    </table>
+    <p><b>補足</b>: ルートパス（/）へのマッピングはありません。存在しない URL にアクセスすると 404 エラー画面が表示されます（§11 参照）。</p>
+  </div>
+  <div class="footer"><span>第 6 章 画面設計</span><span>11</span></div>
+</section>
+
+<!-- ============ 6.3 / 6.4 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.3 画面一覧とテンプレート・6.4 レスポンシブ</h1>
+    <h2>6.3 画面一覧とテンプレート</h2>
+    <table>
+      <tr><th>画面</th><th>テンプレート</th><th>主な表示要素</th></tr>
+      <tr><td>メモ一覧</td><td><code>templates/memos/list.html</code></td><td>検索フォーム、新規作成ボタン、メモ一覧（タイトル・作成日時・本文 100 文字プレビュー・詳細/編集/削除ボタン）、フラッシュメッセージ</td></tr>
+      <tr><td>メモ詳細</td><td><code>templates/memos/show.html</code></td><td>タイトル、本文（改行保持）、作成/更新日時、編集/削除/一覧に戻るボタン</td></tr>
+      <tr><td>メモ新規作成</td><td><code>templates/memos/new.html</code></td><td>タイトル・本文の入力フォーム、バリデーションエラー表示</td></tr>
+      <tr><td>メモ編集</td><td><code>templates/memos/edit.html</code></td><td>既存値入りフォーム、作成/更新日時（表示のみ）、バリデーションエラー表示</td></tr>
+      <tr><td>エラー</td><td><code>templates/error/error.html</code></td><td>エラーメッセージ、トップに戻る/前に戻るボタン</td></tr>
+      <tr><td>共通部品</td><td><code>templates/fragments/parts.html</code></td><td>ヘッダー（ナビ、現在地ハイライト）・フッターのフラグメント定義</td></tr>
+    </table>
+    <p><b>レイアウト共通化</b>: 各画面のヘッダー・フッターは <code>th:replace="~{fragments/parts :: siteHeader('list')}"</code> のように Thymeleaf 標準のフラグメント機能で共通化しています（Thymeleaf Layout Dialect は使用していません）。<b>日時の表示形式</b>: <code>yyyy年MM月dd日 HH:mm</code>（例: 2026年07月21日 10:30）。フォーマットは <code>MemoDto.fromEntity()</code> がサーバー側で行い、画面には整形済み文字列を渡します。</p>
+    <h2>6.4 レスポンシブデザイン</h2>
+    <ul>
+      <li>デスクトップ（1024px 以上）: 通常レイアウト</li>
+      <li>タブレット・モバイル: 1 カラムレイアウト（<code>static/css/style.css</code> のメディアクエリで制御）</li>
+    </ul>
+  </div>
+  <div class="footer"><span>第 6 章 画面設計</span><span>12</span></div>
+</section>
+
+<!-- ============ 7. ディレクトリ構成 (java) ============ -->
+<section class="sheet" id="ch7">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章</div>
+    <h1>ディレクトリ構成（java 側）</h1>
+    <p>実際のリポジトリ構成です（実装と同期済み）。紙面の都合で <code>src/</code> 配下を 2 つのブロックに分けて示します（1 つのツリーです）。本ページは <code>java/</code> 側、次ページは <code>resources/</code>・<code>test/</code> 側です。</p>
+    <div class="flow sm">learn-memo-app-traditional/
+├── src/
+│   ├── main/
+│   │   ├── java/com/example/memoapp/
+│   │   │   ├── MemoAppApplication.java          # Spring Bootメインクラス
+│   │   │   ├── controller/
+│   │   │   │   └── MemoController.java          # プレゼンテーション層
+│   │   │   ├── service/
+│   │   │   │   └── MemoService.java             # ビジネスロジック層（具象クラス）
+│   │   │   ├── mapper/
+│   │   │   │   └── MemoMapper.java              # データアクセス層（インターフェース）
+│   │   │   ├── entity/
+│   │   │   │   └── Memo.java                    # エンティティ
+│   │   │   ├── dto/
+│   │   │   │   └── MemoDto.java                 # DTO（バリデーション定義を含む）
+│   │   │   └── exception/
+│   │   │       ├── MemoNotFoundException.java   # メモ未発見例外（404）
+│   │   │       └── GlobalExceptionHandler.java  # グローバル例外ハンドラ</div>
+  </div>
+  <div class="footer"><span>第 7 章 ディレクトリ構成</span><span>13</span></div>
+</section>
+
+<!-- ============ 7. ディレクトリ構成 (resources/test) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章（続き）</div>
+    <h1>ディレクトリ構成（resources・test 側）</h1>
+    <div class="cols">
+    <div class="flow sm">│   │   └── resources/
+│   │       ├── application.yml                  # アプリケーション設定
+│   │       ├── db/migration/
+│   │       │   └── V1__Create_memos_table.sql   # Flywayマイグレーション（1本のみ）
+│   │       ├── mybatis/mapper/
+│   │       │   └── MemoMapper.xml               # MyBatis 2waySQL定義
+│   │       ├── templates/
+│   │       │   ├── fragments/
+│   │       │   │   └── parts.html               # 共通ヘッダー・フッター（th:fragment）
+│   │       │   ├── memos/
+│   │       │   │   ├── list.html                # 一覧画面
+│   │       │   │   ├── new.html                 # 新規作成画面
+│   │       │   │   ├── edit.html                # 編集画面
+│   │       │   │   └── show.html                # 詳細画面
+│   │       │   └── error/
+│   │       │       └── error.html               # エラー画面（404/400/500共通）
+│   │       └── static/
+│   │           ├── css/style.css                # スタイルシート
+│   │           └── js/script.js                 # JavaScript（Vanilla）
+│   │
+│   └── test/java/com/example/memoapp/
+│       ├── controller/MemoControllerTest.java   # @WebMvcTest スライステスト
+│       ├── service/MemoServiceTest.java         # Mockito 単体テスト
+│       └── dto/MemoDtoTest.java                 # DTO変換の単体テスト
+│
+├── docs/                                        # ドキュメント（本書ほか）
+├── Dockerfile                                   # アプリのマルチステージビルド
+├── docker-compose.yml                           # PostgreSQL + アプリの起動定義
+├── pom.xml                                      # Maven設定
+└── README.md                                    # プロジェクト概要</div>
+    <h2>パッケージ構成の説明</h2>
+    <table>
+      <tr><th>パッケージ</th><th>役割</th></tr>
+      <tr><td>controller</td><td>HTTP リクエストを受け取り、Service を呼び出す。ビジネスロジックは持たない</td></tr>
+      <tr><td>service</td><td>ビジネスルールの実装。トランザクション境界を管理（@Transactional）</td></tr>
+      <tr><td>mapper</td><td>MyBatis の Mapper インターフェース。実際の SQL は XML に記述（2waySQL）</td></tr>
+      <tr><td>entity</td><td>データベーステーブルに対応する Java クラス</td></tr>
+      <tr><td>dto</td><td>層間でデータを受け渡すクラス。バリデーションと表示用フォーマットを担当</td></tr>
+      <tr><td>exception</td><td>カスタム例外と例外ハンドラ（HTTP ステータスへの変換を含む）</td></tr>
+    </table>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 ディレクトリ構成</span><span>14</span></div>
+</section>
+
+<!-- ============ 8. 技術スタック ============ -->
+<section class="sheet" id="ch8">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 8 章</div>
+    <h1>技術スタック</h1>
+    <div class="cols">
+      <h2>8.1 バックエンド</h2>
+      <table>
+        <tr><th>技術</th><th>バージョン</th><th>用途</th></tr>
+        <tr><td>Java</td><td>17</td><td>プログラミング言語</td></tr>
+        <tr><td>Spring Boot</td><td>3.5.16</td><td>Web フレームワーク</td></tr>
+        <tr><td>Spring MVC</td><td>(Spring Boot 同梱)</td><td>MVC フレームワーク</td></tr>
+        <tr><td>MyBatis Starter</td><td>3.0.5</td><td>O/R マッパー（2waySQL）</td></tr>
+        <tr><td>Thymeleaf</td><td>3.1 系</td><td>テンプレートエンジン</td></tr>
+        <tr><td>Bean Validation</td><td>starter-validation</td><td>バリデーション</td></tr>
+        <tr><td>Lombok</td><td>Spring Boot 管理</td><td>ボイラープレート削減</td></tr>
+        <tr><td>Flyway</td><td>11 系</td><td>DB マイグレーション（<code>flyway-database-postgresql</code> が必要）</td></tr>
+      </table>
+      <h2>8.2 フロントエンド</h2>
+      <table>
+        <tr><th>技術</th><th>用途</th></tr>
+        <tr><td>HTML5 / CSS3</td><td>マークアップ・スタイリング</td></tr>
+        <tr><td>JavaScript (Vanilla, ES6+)</td><td>削除確認ダイアログ、クライアントサイドバリデーション、フラッシュメッセージ自動非表示</td></tr>
+      </table>
+      <p>※ jQuery などのライブラリは使用していません。</p>
+      <h2>8.3 データベース</h2>
+      <table>
+        <tr><th>技術</th><th>バージョン</th><th>用途</th></tr>
+        <tr><td>PostgreSQL</td><td>16（<code>postgres:16-alpine</code>）</td><td>RDBMS</td></tr>
+      </table>
+      <p>※ H2 などのインメモリ DB は使用していません（理由は <code>pom.xml</code> のコメント参照）。</p>
+      <h2>8.4 ビルド・実行環境</h2>
+      <table>
+        <tr><th>技術</th><th>用途</th></tr>
+        <tr><td>Maven</td><td>ビルドツール（Docker 方式ではコンテナ内で実行されるためローカルインストール不要）</td></tr>
+        <tr><td>Docker / Docker Compose</td><td>PostgreSQL・アプリの実行環境</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>第 8 章 技術スタック</span><span>15</span></div>
+</section>
+
+<!-- ============ 9. クラス設計 (intro + Memo) ============ -->
+<section class="sheet" id="ch9">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 9 章</div>
+    <h1>クラス設計</h1>
+    <p>実装の全文は各ソースファイル（詳細な学習コメント付き）を参照してください。ここでは<b>構造と設計判断</b>をまとめます（9.1 クラス一覧と公開メソッド）。以降、Memo → MemoDto → MemoMapper → MemoService → MemoController の順に 1 ページずつ示します。</p>
+    <h2>Memo（entity）</h2>
+    <table>
+      <tr><th>フィールド</th><th>型</th><th>対応カラム</th></tr>
+      <tr><td>id</td><td>Long</td><td>id</td></tr>
+      <tr><td>title</td><td>String</td><td>title</td></tr>
+      <tr><td>content</td><td>String</td><td>content</td></tr>
+      <tr><td>createdAt</td><td>LocalDateTime</td><td>created_at</td></tr>
+      <tr><td>updatedAt</td><td>LocalDateTime</td><td>updated_at</td></tr>
+    </table>
+    <p>スネークケース→キャメルケースの変換は <code>map-underscore-to-camel-case: true</code> で自動化。エンティティはテーブルと 1 対 1 に対応します。</p>
+  </div>
+  <div class="footer"><span>第 9 章 クラス設計</span><span>16</span></div>
+</section>
+
+<!-- ============ 9. MemoDto ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 9 章（続き）</div>
+    <h1>9.1 クラス一覧（MemoDto）</h1>
+    <h2>MemoDto（dto）</h2>
+    <table>
+      <tr><th>フィールド</th><th>型</th><th>バリデーション</th></tr>
+      <tr><td>id</td><td>Long</td><td>なし（URL から取得するため）</td></tr>
+      <tr><td>title</td><td>String</td><td>@NotBlank、@Size(min=1, max=200)</td></tr>
+      <tr><td>content</td><td>String</td><td>@NotBlank</td></tr>
+      <tr><td>createdAtFormatted</td><td>String</td><td>なし（表示用。<code>yyyy年MM月dd日 HH:mm</code> 形式）</td></tr>
+      <tr><td>updatedAtFormatted</td><td>String</td><td>なし（表示用）</td></tr>
+    </table>
+    <p>変換メソッド: <code>fromEntity(Memo)</code>（Entity→DTO、日時フォーマット込み）／ <code>toEntity()</code>（DTO→Entity、日時はコピーしない）</p>
+    <div class="goal"><b>設計ポイント</b>: 日時を <code>LocalDateTime</code> ではなく<b>フォーマット済み文字列</b>で持つことで、テンプレート側のフォーマット処理を不要にしています。また、日時をフォームで往復させない（改ざん面を増やさない）設計です。</div>
+  </div>
+  <div class="footer"><span>第 9 章 クラス設計</span><span>17</span></div>
+</section>
+
+<!-- ============ 9. MemoMapper ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 9 章（続き）</div>
+    <h1>9.1 クラス一覧（MemoMapper）</h1>
+    <h2>MemoMapper（mapper）</h2>
+    <table>
+      <tr><th>メソッド</th><th>戻り値</th><th>対応 SQL（MemoMapper.xml）</th><th>状態</th></tr>
+      <tr><td>findAll()</td><td>List&lt;Memo&gt;</td><td>全件取得（created_at 降順）</td><td>使用中</td></tr>
+      <tr><td>findById(Long)</td><td>Optional&lt;Memo&gt;</td><td>ID 指定 1 件取得</td><td>使用中</td></tr>
+      <tr><td>insert(Memo)</td><td>void</td><td>INSERT（useGeneratedKeys で ID 採番）</td><td>使用中</td></tr>
+      <tr><td>update(Memo)</td><td>int</td><td>UPDATE（updated_at はトリガー任せ）</td><td>使用中</td></tr>
+      <tr><td>deleteById(Long)</td><td>int</td><td>DELETE</td><td>使用中</td></tr>
+      <tr><td>searchByKeyword(String)</td><td>List&lt;Memo&gt;</td><td>LIKE 部分一致検索</td><td>使用中</td></tr>
+      <tr><td>findAllWithPaging(int, int)</td><td>List&lt;Memo&gt;</td><td>LIMIT/OFFSET</td><td><b>未使用（実装演習用）</b></td></tr>
+      <tr><td>count()</td><td>long</td><td>COUNT(*)</td><td><b>未使用（実装演習用）</b></td></tr>
+    </table>
+    <div class="goal"><b>設計ポイント</b>: <code>findById</code> は <code>Optional&lt;Memo&gt;</code> を返し、null 安全に「存在しないかもしれない」ことを型で表現しています。ページング系（<code>findAllWithPaging</code> / <code>count</code>）は部品のみ用意した実装演習用です。</div>
+  </div>
+  <div class="footer"><span>第 9 章 クラス設計</span><span>18</span></div>
+</section>
+
+<!-- ============ 9. MemoService ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 9 章（続き）</div>
+    <h1>9.1 クラス一覧（MemoService）</h1>
+    <h2>MemoService（service）</h2>
+    <table>
+      <tr><th>メソッド</th><th>トランザクション</th><th>内容</th></tr>
+      <tr><td>findAll()</td><td>readOnly</td><td>全件取得し DTO に変換</td></tr>
+      <tr><td>findById(Long)</td><td>readOnly</td><td>1 件取得。無ければ MemoNotFoundException</td></tr>
+      <tr><td>create(MemoDto)</td><td>書き込み</td><td>DTO→Entity 変換して登録</td></tr>
+      <tr><td>update(MemoDto)</td><td>書き込み</td><td>存在チェック→更新→更新件数のダブルチェック</td></tr>
+      <tr><td>delete(Long)</td><td>書き込み</td><td>存在チェック→削除</td></tr>
+      <tr><td>search(String)</td><td>readOnly</td><td>キーワード検索。<b>空・null なら全件取得にフォールバック</b></td></tr>
+      <tr><td>findAllWithPaging(int, int)</td><td>readOnly</td><td>ページング取得（<b>未使用・実装演習用</b>）</td></tr>
+      <tr><td>count() / getTotalPages(int)</td><td>readOnly</td><td>総件数・総ページ数（<b>未使用・実装演習用</b>）</td></tr>
+    </table>
+    <div class="goal"><b>設計ポイント</b>: <b>インターフェース + Impl の分離は採用していません</b>。実装クラスが 1 つしかない学習用アプリでは分離は間接参照が増えるだけでメリットが薄いため、具象クラス 1 つの構成にしています（実務では複数実装・モック差し替え・AOP 等の理由で分離する場合があります）。「キーワードが空なら全件」という判断は Service が持ち、Controller は分岐せず <code>search(keyword)</code> を呼ぶだけにしています。参照系メソッドには <code>@Transactional(readOnly = true)</code> を付与しています（効果と自己呼び出しの落とし穴はソースコメント参照）。</div>
+  </div>
+  <div class="footer"><span>第 9 章 クラス設計</span><span>19</span></div>
+</section>
+
+<!-- ============ 9. MemoController / 9.2 例外設計 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 9 章（続き）</div>
+    <h1>9.1 クラス一覧（MemoController）・9.2 例外設計</h1>
+    <div class="cols">
+    <h2>MemoController（controller）</h2>
+    <table>
+      <tr><th>メソッド</th><th>ルーティング</th><th>内容</th></tr>
+      <tr><td>list</td><td>GET /memos</td><td>一覧・検索（<code>search()</code> に委譲）</td></tr>
+      <tr><td>newMemo</td><td>GET /memos/new</td><td>新規作成フォーム表示</td></tr>
+      <tr><td>create</td><td>POST /memos</td><td>登録。成功時は一覧へリダイレクト（PRG）</td></tr>
+      <tr><td>show</td><td>GET /memos/{id}</td><td>詳細表示</td></tr>
+      <tr><td>edit</td><td>GET /memos/{id}/edit</td><td>編集フォーム表示</td></tr>
+      <tr><td>update</td><td>POST /memos/{id}/update</td><td>更新。エラー時は ID と日時を再設定して編集画面へ</td></tr>
+      <tr><td>delete</td><td>POST /memos/{id}/delete</td><td>削除。一覧へリダイレクト</td></tr>
+    </table>
+    <div class="goal"><b>設計ポイント</b>: ID や日時はフォームの hidden で送らず、URL パス（@PathVariable）と DB 再取得で復元します（改ざん対策）。削除・更新は GET ではなく POST を使用（GET は安全な操作に限定する）。</div>
+    <h2>9.2 例外設計</h2>
+    <table>
+      <tr><th>例外</th><th>ハンドラ</th><th>HTTP ステータス</th><th>ログレベル</th></tr>
+      <tr><td>MemoNotFoundException</td><td>handleMemoNotFoundException</td><td>404</td><td>WARN</td></tr>
+      <tr><td>NoResourceFoundException（未定義 URL）</td><td>handleNoResourceFoundException</td><td>404</td><td>WARN</td></tr>
+      <tr><td>IllegalArgumentException</td><td>handleIllegalArgumentException</td><td>400</td><td>ERROR</td></tr>
+      <tr><td>Exception（フォールバック）</td><td>handleException</td><td>500</td><td>ERROR</td></tr>
+    </table>
+    <p>すべて <code>templates/error/error.html</code> を表示します。<b>学習ポイント（重要な落とし穴）</b>: <code>@ExceptionHandler</code> がビューを返す場合、例外クラス側の <code>@ResponseStatus</code> は適用されず、<b>ハンドラメソッド側に <code>@ResponseStatus</code> を明示しないとステータスが 200 になります</b>（詳細は <code>GlobalExceptionHandler.java</code> のコメント参照）。</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 9 章 クラス設計</span><span>20</span></div>
+</section>
+
+<!-- ============ 10. 設定ファイル ============ -->
+<section class="sheet" id="ch10">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 10 章</div>
+    <h1>設定ファイル</h1>
+    <p>設定の全文と各項目の解説は実ファイルのコメントを参照してください。ここでは要点のみまとめます。</p>
+    <table>
+      <tr><th>ファイル</th><th>要点</th></tr>
+      <tr><td><code>application.yml</code></td><td>DB 接続（localhost:5432/memoapp）、HikariCP プール設定、Flyway 有効化（起動時自動実行）、MyBatis 設定（mapper-locations、キャメルケース変換、SQL ログ）、ログレベル</td></tr>
+      <tr><td><code>docker-compose.yml</code></td><td><code>postgres:16-alpine</code>（ヘルスチェック付き）+ アプリコンテナ。アプリ→DB の接続は環境変数 <code>SPRING_DATASOURCE_URL</code> で上書き</td></tr>
+      <tr><td><code>Dockerfile</code></td><td>マルチステージビルド（Maven でビルド → JRE のみの軽量イメージで実行、非 root ユーザー実行）</td></tr>
+      <tr><td><code>pom.xml</code></td><td>Spring Boot 3.5.16 / MyBatis Starter 3.0.5 / flyway-core + flyway-database-postgresql ほか</td></tr>
+    </table>
+    <div class="note"><b>補足（既知の未整理項目）</b>: <code>application.yml</code> には <code>spring.messages</code>（messages.properties の読み込み設定）がありますが、<code>messages.properties</code> ファイル自体は作成していません。バリデーションメッセージはアノテーションの <code>message</code> 属性で完結しています（messages.properties への一元化は学習課題として残しています）。</div>
+  </div>
+  <div class="footer"><span>第 10 章 設定ファイル</span><span>21</span></div>
+</section>
+
+<!-- ============ 11. テスト設計 ============ -->
+<section class="sheet" id="ch11">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 11 章</div>
+    <h1>テスト設計</h1>
+    <h2>11.1 実装済みテスト（全 30 テスト、DB 不要で実行可能）</h2>
+    <table>
+      <tr><th>テストクラス</th><th>手法</th><th>対象・学習ポイント</th></tr>
+      <tr><td><code>MemoDtoTest</code></td><td>素の JUnit 5</td><td>Entity⇔DTO 変換。依存ゼロの純粋ロジックテスト</td></tr>
+      <tr><td><code>MemoServiceTest</code></td><td>Mockito（@Mock/@InjectMocks）</td><td>ビジネスロジック単体。モック・ArgumentCaptor・例外検証・never 検証</td></tr>
+      <tr><td><code>MemoControllerTest</code></td><td>@WebMvcTest + MockMvc</td><td>HTTP 層スライス。ステータスコード（404 含む）・ビュー名・モデル検証。<b>@MockitoBean を使用</b>（Spring Boot 3.4 以降、@MockBean は非推奨）</td></tr>
+    </table>
+    <pre>mvn test        <span class="cm"># ローカルにMavenがある場合</span>
+<span class="cm"># または Docker で（ローカルにMaven不要）:</span>
+docker run --rm -v "$PWD:/app" -w /app maven:3.9.6-eclipse-temurin-17 mvn test</pre>
+    <h2>11.2 回帰テストとしての役割</h2>
+    <p>2026-07 のレビューで修正したバグ（存在しない ID・未定義 URL で 200 が返る、編集エラー時に日時欄が空になる等）は、テストで再発防止しています。</p>
+    <h2>11.3 未実装（学習課題）</h2>
+    <ul>
+      <li><b>Mapper テスト</b>: 実際の PostgreSQL に対する SQL 検証。<code>@MybatisTest</code> + <b>Testcontainers</b>（テスト実行時に使い捨ての DB コンテナを起動するライブラリ）を使う構成が実務では一般的です（H2 での代替は本プロジェクトの DDL が PostgreSQL 専用構文のため不可）</li>
+      <li><b>E2E テスト</b>: ブラウザ操作の自動テスト（Playwright / Selenium）</li>
+    </ul>
+  </div>
+  <div class="footer"><span>第 11 章 テスト設計</span><span>22</span></div>
+</section>
+
+<!-- ============ 12. 実装状況と今後の演習 ============ -->
+<section class="sheet" id="ch12">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 12 章</div>
+    <h1>実装状況と今後の演習</h1>
+    <h2>12.1 実装済み</h2>
+    <p>ステップ 1（メモ帳アプリ）は完成しています。基本 CRUD・検索・例外ハンドリング・テストまで実装済みです。</p>
+    <h2>12.2 実装演習（コードに部品・解説あり）</h2>
+    <table>
+      <tr><th>演習</th><th>難易度</th><th>手がかり</th></tr>
+      <tr><td>一覧画面のページング</td><td>★★</td><td><code>MemoService</code> / <code>MemoMapper</code> に未使用のページング API あり。手順は <code>MemoService</code> のコメント参照</td></tr>
+      <tr><td>pg_trgm による LIKE 検索の高速化</td><td>★★</td><td><code>V1__Create_memos_table.sql</code> のコメントに手順（V2 マイグレーション + EXPLAIN ANALYZE）</td></tr>
+      <tr><td>LIKE ワイルドカードのエスケープ</td><td>★★</td><td><code>MemoMapper.xml</code> のコメント参照（ESCAPE 句）</td></tr>
+      <tr><td>Mapper テスト（Testcontainers）</td><td>★★★</td><td>11.3 参照</td></tr>
+    </table>
+    <h2>12.3 将来の拡張アイデア</h2>
+    <ul>
+      <li>カテゴリー機能（1 対多）・タグ機能（多対多）</li>
+      <li>認証・認可（Spring Security）と CSRF 対策</li>
+      <li>REST API 化（モダン構成 learn-memo-app-modern への移行を考える教材）</li>
+      <li>Markdown 対応、添付ファイル、エクスポート</li>
+    </ul>
+  </div>
+  <div class="footer"><span>第 12 章 実装状況と今後の演習</span><span>23</span></div>
+</section>
+
+<!-- ============ 13. 学習ガイダンス ============ -->
+<section class="sheet" id="ch13">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 13 章</div>
+    <h1>学習ガイダンス</h1>
+    <h2>13.1 初心者向け学習の進め方</h2>
+    <ol>
+      <li><b>まずは動かしてみる</b>: 環境構築を完了させ、各機能を操作して動作を確認</li>
+      <li><b>設計書（本書）で全体像を掴む</b>: 3 層の役割・URL 設計・DB 設計</li>
+      <li><b>コードを読む</b>: Controller → Service → Mapper の流れを追う。ソースの学習コメントが「なぜ」を説明しています</li>
+      <li><b>SQL を確認する</b>: <code>MemoMapper.xml</code> の SQL を読み、psql で直接実行してみる</li>
+      <li><b>小さな変更を加える</b>: メッセージ文言・CSS・バリデーションルールの変更</li>
+      <li><b>実装演習に挑戦</b>: 12.2 の演習（ページング等）</li>
+      <li><b>テストを書く</b>: 既存の 30 テストを参考に、変更した箇所のテストを追加</li>
+    </ol>
+    <h2>13.2 つまづきやすいポイント</h2>
+    <table>
+      <tr><th>症状</th><th>確認ポイント</th></tr>
+      <tr><td>PostgreSQL に接続できない</td><td>コンテナ起動状態（<code>docker compose ps</code>）、application.yml の接続情報</td></tr>
+      <tr><td>Flyway checksum mismatch</td><td>適用済みマイグレーションを書き換えた場合に発生。<code>docker compose down -v</code> でリセット</td></tr>
+      <tr><td>MyBatis の取得結果が null</td><td>カラム名⇔プロパティ名の対応、<code>map-underscore-to-camel-case</code> 設定</td></tr>
+      <tr><td>バリデーションエラーが表示されない</td><td><code>BindingResult</code> は <code>@Valid</code> の<b>直後</b>の引数に置く必要がある</td></tr>
+      <tr><td>エラー画面は出るのにステータスが 200</td><td>ハンドラメソッドに <code>@ResponseStatus</code> を付けているか（9.2 の落とし穴）</td></tr>
+    </table>
+  </div>
+  <div class="footer"><span>第 13 章 学習ガイダンス</span><span>24</span></div>
+</section>
+
+<!-- ============ 13.3 推奨学習リソース ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 13 章（続き）</div>
+    <h1>13.3 推奨学習リソース</h1>
+    <ul>
+      <li>Spring Boot Reference Documentation: <a href="https://docs.spring.io/spring-boot/docs/current/reference/html/">https://docs.spring.io/spring-boot/docs/current/reference/html/</a></li>
+      <li>MyBatis Documentation: <a href="https://mybatis.org/mybatis-3/">https://mybatis.org/mybatis-3/</a> ／ Thymeleaf Documentation: <a href="https://www.thymeleaf.org/documentation.html">https://www.thymeleaf.org/documentation.html</a></li>
+      <li>PostgreSQL Documentation: <a href="https://www.postgresql.org/docs/">https://www.postgresql.org/docs/</a></li>
+      <li>本リポジトリの <code>docs/MyBatis2waySQL解説.md</code>（2waySQL の詳細解説）</li>
+    </ul>
+  </div>
+  <div class="footer"><span>第 13 章 学習ガイダンス</span><span>25</span></div>
+</section>
+
+<!-- ============ 付録 A ============ -->
+<section class="sheet" id="appendix">
+  <div class="sheet-body">
+    <div class="chapter-tag">付録</div>
+    <h1>A. 用語集</h1>
+    <div class="cols">
+      <ul>
+        <li><b>CRUD</b>: Create（作成）、Read（読み取り）、Update（更新）、Delete（削除）の頭文字</li>
+        <li><b>MVC</b>: Model-View-Controller。アプリケーションを 3 つの役割に分離する設計パターン</li>
+        <li><b>DTO</b>: Data Transfer Object。層間でデータを受け渡すためのオブジェクト</li>
+        <li><b>Entity</b>: データベーステーブルに対応する Java オブジェクト</li>
+        <li><b>Mapper</b>: MyBatis のデータアクセスインターフェース</li>
+        <li><b>2waySQL</b>: 動的 SQL としても静的 SQL としても利用できる SQL 記述方式</li>
+        <li><b>DI</b>: Dependency Injection（依存性注入）</li>
+        <li><b>PRG パターン</b>: Post-Redirect-Get。二重送信を防ぐリダイレクト設計</li>
+        <li><b>フラグメント</b>: Thymeleaf のテンプレート部品化機能（th:fragment / th:replace）</li>
+        <li><b>スライステスト</b>: アプリの一部の層だけを起動するテスト（@WebMvcTest など）</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>付録 用語集</span><span>26</span></div>
+</section>
+
+<!-- ============ 付録 B / C / ドキュメント情報 ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">付録</div>
+    <h1>B. トラブルシューティング・C. 便利なコマンド</h1>
+    <div class="cols">
+      <h2>B. トラブルシューティング</h2>
+      <h3>ポート 8080 が既に使用されている</h3>
+      <pre><span class="cm"># Windowsの場合</span>
+netstat -ano | findstr :8080
+taskkill /PID &lt;PID&gt; /F
+
+<span class="cm"># macOS/Linuxの場合</span>
+lsof -i :8080
+kill -9 &lt;PID&gt;</pre>
+      <h3>PostgreSQL 接続エラー</h3>
+      <pre><span class="cm"># コンテナが起動しているか確認</span>
+docker compose ps
+docker compose logs postgres</pre>
+      <h3>Flyway マイグレーションエラー（checksum mismatch など）</h3>
+      <pre><span class="cm"># 学習環境ではDBリセットが最も確実（データは消えます）</span>
+docker compose down -v
+docker compose up --build</pre>
+      <p>※ 本プロジェクトには flyway-maven-plugin を入れていないため、<code>mvn flyway:migrate</code> 等の Maven コマンドは<b>使えません</b>。マイグレーションはアプリ起動時に自動実行されます。</p>
+      <h2>C. 開発時の便利なコマンド</h2>
+      <pre><span class="cm"># すべてDockerで起動（推奨）</span>
+docker compose up --build
+
+<span class="cm"># DBのみ起動してアプリはローカル実行</span>
+docker compose up -d postgres
+mvn spring-boot:run
+
+<span class="cm"># テスト実行 / JAR作成</span>
+mvn test
+mvn clean package
+
+<span class="cm"># PostgreSQLに接続（psql）</span>
+docker compose exec postgres psql -U memoapp_user -d memoapp</pre>
+      <div class="goal"><b>ドキュメント情報</b><br>
+      バージョン: 3.0.0 ／ 最終更新日: 2026-07-21<br>
+      変更履歴: v1.0.0 初版作成（MySQL + Spring Data JPA）／ v2.0.0 PostgreSQL + MyBatis + 2waySQL に変更、Flyway 詳細追加 ／ v3.0.0 実装との全面同期（Issue #7）</div>
+    </div>
+  </div>
+  <div class="footer"><span>付録 メモ帳アプリケーション 設計書（従来型）</span><span>27</span></div>
+</section>
+
+</div><!-- /.paper-area -->
+
+</body>
+</html>
