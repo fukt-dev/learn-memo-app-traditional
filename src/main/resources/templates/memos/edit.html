@@ -100,8 +100,12 @@
 
 <!--
     【なぜ id をフォームで送らないか】
-    id を <input type="hidden" name="id"> でフォームに載せると、ユーザーが value を別メモの id に
-    書き換えて送信でき、他人のメモを更新できてしまう。そこで id は URL パス（@PathVariable）から取り、
-    フォームには title / content だけを含める。Controller は memoDto.setId(id) で URL の id を再設定する
+    更新対象の特定は URL パス（@PathVariable）に一本化し、フォームには title / content だけを含める。
+    id を <input type="hidden" name="id"> でも送ると「URL の id とフォームの id が食い違ったとき
+    どちらが正か」という曖昧さが生まれるため、入力源を 1 つに絞って事故を防ぐ設計。
+    注意: URL パスの id も利用者が自由に書き換えられるので、URL に移すこと自体は改ざん対策には
+    ならない。実務で他人のデータへの更新を防ぐには、サーバー側の認可チェック（その id は
+    操作してよい相手か）が別途必須。本アプリはログイン機能のない学習用のため実装していない。
+    Controller は memoDto.setId(id) で URL の id を再設定する
     （再設定しないと、次回の action URL 生成に使う memoDto.id が無くエラーになる）
 -->
