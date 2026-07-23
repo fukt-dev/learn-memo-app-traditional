@@ -238,8 +238,8 @@
         <tr><td></td><td>4.8 データベース管理ツール</td><td>24</td></tr>
         <tr><td>5</td><td>環境構築の確認</td><td>25</td></tr>
         <tr><td>6</td><td>プロジェクトのセットアップ</td><td>26</td></tr>
-        <tr><td>7</td><td>トラブルシューティング</td><td>30</td></tr>
-        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>35</td></tr>
+        <tr><td>7</td><td>トラブルシューティング</td><td>31</td></tr>
+        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>36</td></tr>
       </table>
     </div>
   </div>
@@ -1214,6 +1214,31 @@ docker compose logs postgres</pre>
   <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>28</span></div>
 </section>
 
+<!-- ============ 6.2b（続き）「実行」と「デバッグ」の違い ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.2b「実行」と「デバッグ」の違い</h1>
+    <div class="cols">
+      <ul>
+        <li>デバッグビューにスレッドや変数が表示されるのは<b>「デバッグ」で起動したときだけ</b>です。「実行」は素の起動で、Eclipse からアプリの内部状態を覗くことはできません</li>
+        <li><b>仕組み</b>: デバッグ起動は JVM にデバッグ用の接続口（JDWP）を付けて起動し、Eclipse がスレッド・変数・スタックを覗けるようにしています</li>
+        <li>Boot ダッシュボードでは ▶（通常起動）ではなく<b>虫アイコン（デバッグ起動）を使います</b>。学習中は常にデバッグ起動でよく、性能差は無視できるレベルです</li>
+      </ul>
+      <p><b>デバッグビューに表示される主なスレッドの正体</b>:</p>
+      <table>
+        <tr><th style="width:38mm">スレッド名</th><th>正体</th></tr>
+        <tr><td><code>http-nio-8080-exec-*</code></td><td>Tomcat のリクエスト処理部隊。同時に来る複数リクエストを捌くための待機スレッド群で、ブラウザからのアクセスはこのうち 1 本が担当します</td></tr>
+        <tr><td><code>Catalina-utility-*</code></td><td>Tomcat の内部保守処理（セッション掃除など）</td></tr>
+        <tr><td><code>HikariPool-1:housekeeper</code></td><td>DB コネクションプールの管理</td></tr>
+        <tr><td>ファイル監視 / <code>Live Reload Server</code></td><td>spring-boot-devtools のホットリロード用</td></tr>
+      </table>
+      <p>ブレークポイントで停止するのは「そのリクエストを担当している 1 本のスレッド」だけで、他のスレッドは裏で動き続けます。Web アプリケーションがマルチスレッドで動いているということが、このビューで実物として確認できます。</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>29</span></div>
+</section>
+
 <!-- ============ 6. プロジェクトのセットアップ (後半) ============ -->
 <section class="sheet">
   <div class="sheet-body">
@@ -1251,7 +1276,7 @@ SELECT * FROM memos;
 \q</pre>
     </div>
   </div>
-  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>29</span></div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>30</span></div>
 </section>
 
 <!-- ============ 7. トラブルシューティング (前半) ============ -->
@@ -1283,7 +1308,7 @@ export PATH=$JAVA_HOME/bin:$PATH</pre>
 mvn clean install -U</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>30</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>31</span></div>
 </section>
 
 <section class="sheet">
@@ -1308,7 +1333,7 @@ ports:
       <p>※ モダン版（learn-memo-app-modern）の PostgreSQL コンテナはホスト側 5433 を使います。両方同時に動かす場合はポートが重ならないようにしてください。</p>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>31</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>32</span></div>
 </section>
 
 <!-- ============ 7. トラブルシューティング (後半) ============ -->
@@ -1331,7 +1356,7 @@ docker compose ps
 docker compose up -d postgres</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>32</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>33</span></div>
 </section>
 
 <section class="sheet">
@@ -1365,7 +1390,7 @@ mvn spring-boot:run</pre>
       <pre>docker compose exec postgres psql -U memoapp_user -d memoapp -c "SELECT version, description, checksum, success FROM flyway_schema_history;"</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>33</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>34</span></div>
 </section>
 
 <!-- ============ 7.5 Eclipseデバッグ: SilentExitException ============ -->
@@ -1380,7 +1405,7 @@ mvn spring-boot:run</pre>
       <p><b>対処 2（恒久）</b>: 「ウィンドウ」→「設定」→「Java」→「デバッグ」→「キャッチされない例外で実行を中断」のチェックを外します。ただし本物のキャッチされない例外でもデバッガが止まらなくなる点に注意してください。</p>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>34</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>35</span></div>
 </section>
 
 <!-- ============ 付録 ============ -->
@@ -1428,7 +1453,7 @@ git pull                  <span class="cm"># リモートから取得</span></pr
       <div class="goal"><b>環境構築お疲れ様でした！🎉</b><br>次は <code>開発ガイド.md</code> を参照して、実際にコードを書いていきましょう。</div>
     </div>
   </div>
-  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>35</span></div>
+  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>36</span></div>
 </section>
 
 </div><!-- /.paper-area -->
