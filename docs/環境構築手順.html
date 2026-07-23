@@ -231,15 +231,15 @@
         <tr><td></td><td>4.1 必要なソフトウェア一覧</td><td>7</td></tr>
         <tr><td></td><td>4.2 Java Development Kit (JDK)</td><td>8</td></tr>
         <tr><td></td><td>4.3 統合開発環境 (IDE)</td><td>11</td></tr>
-        <tr><td></td><td>4.4 ビルドツール (Maven)</td><td>13</td></tr>
-        <tr><td></td><td>4.5 データベース (PostgreSQL)</td><td>15</td></tr>
-        <tr><td></td><td>4.6 Docker</td><td>17</td></tr>
-        <tr><td></td><td>4.7 Git</td><td>20</td></tr>
-        <tr><td></td><td>4.8 データベース管理ツール</td><td>22</td></tr>
-        <tr><td>5</td><td>環境構築の確認</td><td>23</td></tr>
-        <tr><td>6</td><td>プロジェクトのセットアップ</td><td>24</td></tr>
-        <tr><td>7</td><td>トラブルシューティング</td><td>26</td></tr>
-        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>30</td></tr>
+        <tr><td></td><td>4.4 ビルドツール (Maven)</td><td>15</td></tr>
+        <tr><td></td><td>4.5 データベース (PostgreSQL)</td><td>17</td></tr>
+        <tr><td></td><td>4.6 Docker</td><td>19</td></tr>
+        <tr><td></td><td>4.7 Git</td><td>22</td></tr>
+        <tr><td></td><td>4.8 データベース管理ツール</td><td>24</td></tr>
+        <tr><td>5</td><td>環境構築の確認</td><td>25</td></tr>
+        <tr><td>6</td><td>プロジェクトのセットアップ</td><td>26</td></tr>
+        <tr><td>7</td><td>トラブルシューティング</td><td>31</td></tr>
+        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>36</td></tr>
       </table>
     </div>
   </div>
@@ -392,7 +392,7 @@ docker compose down
 
 <span class="cm"># データベースも含めて完全リセット</span>
 docker compose down -v</pre>
-      <div class="goal"><b>これで完了！</b> 次は「6. プロジェクトのセットアップ」（18 ページ）へ進んでください。</div>
+      <div class="goal"><b>これで完了！</b> 次は「6. プロジェクトのセットアップ」（26 ページ）へ進んでください。</div>
     </div>
   </div>
   <div class="footer"><span>第 3 章 Docker 方式</span><span>6</span></div>
@@ -572,6 +572,12 @@ $env:JAVA_HOME    <span class="cm"># Windows (PowerShell)</span></pre>
         <li>✅ クラスやメソッドをクリック 1 つで定義場所に飛べる</li>
         <li>✅ デバッグ（バグ探し）が簡単にできる</li>
       </ul>
+      <p><b>IDE は次の 2 つからどちらか 1 つを選べば OK</b>（両方入れる必要はありません）。</p>
+      <ul>
+        <li><b>IntelliJ IDEA Community Edition</b>（4.3.2 で説明）</li>
+        <li><b>Eclipse (Pleiades All in One)</b>（4.3.3 で説明）── 日本語化済み・JDK / Maven / Lombok 設定済みのオールインワン配布版。<b>これを選ぶと 4.2 JDK と 4.4 Maven のインストールが丸ごと不要になります</b></li>
+      </ul>
+      <p>迷ったら、個別インストールの手間が少ない Eclipse (Pleiades All in One) がおすすめです。</p>
       <h3>4.3.2 IntelliJ IDEA のインストール</h3>
       <p><b>IntelliJ IDEA</b> は、Java 開発で最も人気のある IDE です。<b>すべての OS 共通手順（Community Edition = 無料版）</b>:</p>
       <ol>
@@ -589,12 +595,81 @@ $env:JAVA_HOME    <span class="cm"># Windows (PowerShell)</span></pre>
   <div class="footer"><span>第 4 章 4.3 IDE</span><span>11</span></div>
 </section>
 
+<!-- ============ 4.3.3 Eclipse (Pleiades) (前半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.3（続き）</div>
+    <h1>4.3 Eclipse (Pleiades All in One) のインストール</h1>
+    <div class="cols">
+      <h3>4.3.3 Eclipse (Pleiades All in One) のインストール</h3>
+      <p><b>Eclipse (Pleiades All in One)</b> は、Eclipse 本体に日本語化・JDK・Maven・Lombok 等をあらかじめ組み込んだ「オールインワン」配布版です。MergeDoc Project という有志コミュニティが配布しています。</p>
+      <p><b>ダウンロード手順</b>:</p>
+      <ol>
+        <li>検索エンジンで「Pleiades」を検索し、MergeDoc Project のサイトを開く</li>
+        <li>「Eclipse 2026」→ エディション「Java」→「Windows x64」の「JRE あり (Full Edition)」を選択</li>
+        <li>ファイル例: <code>pleiades-2026-06-java-win-64bit-jre_20260705.exe</code>（約 1.3GB）</li>
+      </ol>
+      <div class="note"><b>⚠️ 罠</b>: ダウンロードページには大きな「Download Now」ボタン風の<b>広告</b>が表示されます。本物のダウンロードリンクは、ページ中にある <code>ftp.jaist.ac.jp</code>（JAIST ミラー）へのテキストリンクで、通常はクリックすると自動でダウンロードが始まります。</div>
+      <p><b>ファイルの正当性確認（推奨）</b>: ダウンロードした exe ファイルが改ざんされていないか確認できます。ページに記載された MD5 値と、以下のコマンドの結果が一致することを確認してください。</p>
+      <pre>Get-FileHash "ダウンロードしたファイル" -Algorithm MD5</pre>
+      <h3>インストール（展開）手順</h3>
+      <ol>
+        <li>ダウンロードした exe を実行する（自己解凍形式であり、インストーラーではないため、レジストリや環境変数は一切変更されません）</li>
+        <li><b>Microsoft Defender SmartScreen の「Windows によって PC が保護されました」という警告が出たら「詳細情報」→「実行」をクリック</b>（コード署名のない自己解凍形式のファイルであるための警告です。MD5 照合済みであれば、安全に続行できます）</li>
+        <li>展開先を指定する。<b><code>C:\pleiades</code> などの C ドライブ直下の浅いパス</b>にすること（デフォルトの推奨設定に従えば OK）
+          <ul>
+            <li>❌ <code>Program Files</code> 配下 → 権限問題でプラグイン追加や自己更新が壊れる</li>
+            <li>❌ 深いフォルダ・日本語を含むパス → Windows の 260 文字パス制限に引っかかり、展開や起動に失敗する</li>
+          </ul>
+        </li>
+        <li>展開が終わったら、以下を実行して起動する:</li>
+      </ol>
+      <pre>C:\pleiades\2026-06\eclipse\eclipse.exe</pre>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.3 IDE</span><span>12</span></div>
+</section>
+
+<!-- ============ 4.3.3 Eclipse (Pleiades) (後半) ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 4 章 4.3（続き）</div>
+    <h1>4.3 Eclipse（同梱物・フォント設定）</h1>
+    <div class="cols">
+      <p><b>Pleiades に含まれるもの（＝個別インストールが不要になるもの）</b>:</p>
+      <table>
+        <tr><th>同梱物</th><th>内容</th><th>対応する手順書セクション</th></tr>
+        <tr><td><b>JDK</b></td><td>8 / 11 / 17 / 21 / 25 の 5 バージョンが同梱・IDE に登録済み（Eclipse 本体は JDK 21 で動作）</td><td>4.2 JDK が不要になる</td></tr>
+        <tr><td><b>Maven</b></td><td>m2e（Eclipse の Maven 統合）を内蔵</td><td>4.4 Maven が不要になる</td></tr>
+        <tr><td><b>Lombok</b></td><td><code>eclipse.ini</code> に <code>-javaagent:lombok.jar</code> 設定済み</td><td>素の Eclipse では手動設定が必要な箇所</td></tr>
+        <tr><td><b>文字コード</b></td><td><code>-Dfile.encoding=UTF-8</code> 設定済み。コンソールの日本語ログが文字化けしない</td><td>―</td></tr>
+        <tr><td><b>日本語化</b></td><td>メニュー・設定画面が日本語</td><td>―</td></tr>
+      </table>
+      <p><b>フォント設定（推奨）</b>: デフォルトのエディタ・コンソールフォントは「ＭＳ ゴシック 9pt」で、現代の高解像度モニタでは小さく読みづらいです。以下の手順で変更できます。</p>
+      <ol>
+        <li>メニュー「ウィンドウ」→「設定」→「一般」→「外観」→「色とフォント」→「基本」→「テキスト・フォント」→「編集」</li>
+        <li>おすすめのフォント: <b>BIZ UD ゴシック 11pt</b>（Windows 11 標準搭載・日本語込みで読みやすい）、または <b>Consolas 11pt</b>（日本語は自動的に別フォントで代替表示される）</li>
+        <li>「テキスト・フォント」を変更すると、Java エディタとコンソールのフォントが一括で変わります</li>
+      </ol>
+      <div class="check">
+        <div class="ttl">✅ Eclipse インストール完了チェックリスト</div>
+        <ul>
+          <li>eclipse.exe が起動できる</li>
+          <li>メニューが日本語で表示されている</li>
+          <li>(推奨) テキスト・フォントを変更した</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>第 4 章 4.3 IDE</span><span>13</span></div>
+</section>
+
 <section class="sheet">
   <div class="sheet-body">
     <div class="chapter-tag">第 4 章 4.3（続き）</div>
     <h1>4.3 IDE（基本設定）</h1>
     <div class="cols">
-      <h3>4.3.3 IDE の基本設定</h3>
+      <h3>4.3.4 IDE の基本設定（IntelliJ IDEA の場合）</h3>
       <p><b>JDK の設定確認</b>:</p>
       <pre>1. 「Configure」→「Project Structure」を開く
 2. 「Project」タブを選択
@@ -616,7 +691,7 @@ $env:JAVA_HOME    <span class="cm"># Windows (PowerShell)</span></pre>
       <p><b>トラブル時の確認ポイント:</b> 起動しない → システム要件を確認（メモリ不足の可能性）／ プラグインが見つからない → インターネット接続を確認 ／ 動作が遅い → メモリ設定を調整（Help → Edit Custom VM Options）</p>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.3 IDE</span><span>12</span></div>
+  <div class="footer"><span>第 4 章 4.3 IDE</span><span>14</span></div>
 </section>
 
 <!-- ============ 4.4 Maven ============ -->
@@ -651,7 +726,7 @@ Path に追加: %MAVEN_HOME%\bin</pre>
       <pre>sudo apt install maven -y</pre>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.4 Maven</span><span>13</span></div>
+  <div class="footer"><span>第 4 章 4.4 Maven</span><span>15</span></div>
 </section>
 
 <section class="sheet">
@@ -677,7 +752,7 @@ Path に追加: %MAVEN_HOME%\bin</pre>
       <p><b>トラブル時の確認ポイント:</b> コマンドが見つからない → PATH 環境変数の設定を確認 ／ Java バージョンが違う → JAVA_HOME 環境変数を確認</p>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.4 Maven</span><span>14</span></div>
+  <div class="footer"><span>第 4 章 4.4 Maven</span><span>16</span></div>
 </section>
 
 <!-- ============ 4.5 PostgreSQL (前半) ============ -->
@@ -722,7 +797,7 @@ brew services start postgresql@16
 createdb memoapp</pre>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.5 PostgreSQL</span><span>15</span></div>
+  <div class="footer"><span>第 4 章 4.5 PostgreSQL</span><span>17</span></div>
 </section>
 
 <!-- ============ 4.5 PostgreSQL (後半) ============ -->
@@ -760,7 +835,7 @@ psql --version
       <div class="note"><b>注意</b>: 本プロジェクトでは Docker で PostgreSQL を使用するため、ローカルインストールは必須ではありません。</div>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.5 PostgreSQL</span><span>16</span></div>
+  <div class="footer"><span>第 4 章 4.5 PostgreSQL</span><span>18</span></div>
 </section>
 
 <!-- ============ 4.6 Docker (前半) ============ -->
@@ -812,7 +887,7 @@ sudo usermod -aG docker $USER
 <span class="cm"># ログアウト・ログインして設定を反映</span></pre>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.6 Docker</span><span>17</span></div>
+  <div class="footer"><span>第 4 章 4.6 Docker</span><span>19</span></div>
 </section>
 
 <!-- ============ 4.6 Docker (後半) ============ -->
@@ -858,7 +933,7 @@ docker ps</pre>
       </ul>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.6 Docker</span><span>18</span></div>
+  <div class="footer"><span>第 4 章 4.6 Docker</span><span>20</span></div>
 </section>
 
 <section class="sheet">
@@ -881,7 +956,7 @@ docker rm postgres-trial</pre>
       <p><b>トラブル時の確認ポイント:</b> コマンドが見つからない → Docker のインストールをやり直す ／ Docker Desktop が起動しない → システム要件を確認（WSL2 が必要な場合あり）／ 権限エラー（Linux）→ 現在のユーザーを docker グループに追加</p>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.6 Docker</span><span>19</span></div>
+  <div class="footer"><span>第 4 章 4.6 Docker</span><span>21</span></div>
 </section>
 
 <!-- ============ 4.7 Git ============ -->
@@ -921,7 +996,7 @@ xcode-select --install</pre>
       <pre>sudo apt install git -y</pre>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.7 Git</span><span>20</span></div>
+  <div class="footer"><span>第 4 章 4.7 Git</span><span>22</span></div>
 </section>
 
 <section class="sheet">
@@ -952,7 +1027,7 @@ git config --list</pre>
       <p><b>トラブル時の確認ポイント:</b> コマンドが見つからない → PATH 環境変数に Git が追加されているか確認 ／ 文字化けする（Windows）→ <code>git config --global core.quotepath false</code> を実行</p>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.7 Git</span><span>21</span></div>
+  <div class="footer"><span>第 4 章 4.7 Git</span><span>23</span></div>
 </section>
 
 <!-- ============ 4.8 データベース管理ツール ============ -->
@@ -1002,7 +1077,7 @@ git config --list</pre>
       </table>
     </div>
   </div>
-  <div class="footer"><span>第 4 章 4.8 データベース管理ツール</span><span>22</span></div>
+  <div class="footer"><span>第 4 章 4.8 データベース管理ツール</span><span>24</span></div>
 </section>
 
 <!-- ============ 5. 環境構築の確認 ============ -->
@@ -1043,7 +1118,7 @@ git --version</pre>
       </ul>
     </div>
   </div>
-  <div class="footer"><span>第 5 章 環境構築の確認</span><span>23</span></div>
+  <div class="footer"><span>第 5 章 環境構築の確認</span><span>25</span></div>
 </section>
 
 <!-- ============ 6. プロジェクトのセットアップ (前半) ============ -->
@@ -1086,7 +1161,82 @@ docker compose ps
 docker compose logs postgres</pre>
     </div>
   </div>
-  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>24</span></div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>26</span></div>
+</section>
+
+<!-- ============ 6.2b Eclipseでプロジェクトを開く ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.2b Eclipse でプロジェクトを開く</h1>
+    <div class="cols">
+      <p>Eclipse (Pleiades All in One) を選んだ場合は、以下の手順でプロジェクトを開きます。</p>
+      <ol>
+        <li>メニュー「ファイル」→「インポート」</li>
+        <li>「Maven」→「既存 Maven プロジェクト」→「次へ」</li>
+        <li>ルート・ディレクトリーにクローンしたプロジェクトフォルダを指定</li>
+        <li><code>/pom.xml</code> にチェックが入っていることを確認して「完了」</li>
+        <li>初回は画面右下のプログレスバーで依存ライブラリのダウンロードが数分走るので待つ</li>
+        <li>パッケージ・エクスプローラーでプロジェクトに赤い ❌ がないことを確認（赤い場合は JDK 設定か Lombok を疑う）</li>
+      </ol>
+      <p><b>JDK 設定が不要な理由</b>: pom.xml の <code>&lt;java.version&gt;17&lt;/java.version&gt;</code> を m2e が読み取り、「JavaSE-17 実行環境」→ Pleiades 同梱の JDK 17 に自動でマッピングされます。手動設定は不要です。</p>
+      <p><b>起動・デバッグ</b>: <code>MemoAppApplication.java</code> を右クリック →「デバッグ」→「Java アプリケーション」を選択します。コンソールに <code>Started MemoAppApplication in X.XXX seconds</code> が出たら成功です（6.5 アプリケーションの起動と同じ確認方法）。行番号の左をダブルクリックするとブレークポイントを置けます。デバッグ実行中にブラウザからアクセスするとその行で止まり、変数の中身を見ながら 1 行ずつ実行できます。</p>
+      <table>
+        <tr><th style="width:20mm">キー</th><th>動作</th></tr>
+        <tr><td><code>F6</code></td><td>ステップオーバー</td></tr>
+        <tr><td><code>F5</code></td><td>ステップイン</td></tr>
+        <tr><td><code>F8</code></td><td>再開</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>27</span></div>
+</section>
+
+<!-- ============ 6.2b（続き）Bootダッシュボード ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.2b Boot ダッシュボードでの起動・停止（推奨）</h1>
+    <div class="cols">
+      <p>Pleiades には Spring Tools (STS) が同梱されており、画面下部の「Boot ダッシュボード」タブから Spring Boot アプリを一覧管理できます。</p>
+      <ul>
+        <li><b>使い方</b>: 「Boot ダッシュボード」タブ → 「local」の下に <code>memo-app [devtools]</code> が表示される → 選択して虫アイコン=デバッグ起動 / ▶=通常起動 / ⏹=停止 / 🔄=再起動</li>
+      </ul>
+      <div class="note"><b>⚠️ 罠（実機で遭遇）</b>: アプリが一覧に表示されない場合、ビューのフィルターアイコンから「フィルターの選択」を開き、<b>「単独の起動構成を非表示」のチェックを外す</b>必要があります（デフォルトでチェックが付いていることがあります）。</div>
+      <p><b>注意</b>: 「Java アプリケーション」として起動したものが動いたままの状態で Boot ダッシュボードから起動すると、ポート 8080 の取り合いで <code>Port 8080 was already in use</code> になります。先に既存の起動を⏹で止めてください。</p>
+      <p><b>豆知識</b>:</p>
+      <ol>
+        <li><b>「サーバー」ビュー（Tomcat10_Java17 などが並ぶビュー）はこのアプリでは使いません</b>: あれは外部 Tomcat に WAR をデプロイする従来型 Java EE 開発用です。Spring Boot は組み込み Tomcat をアプリ内部に持つため、外部サーバーへのデプロイは不要です</li>
+        <li><b>パッケージ・エクスプローラーで <code>src</code> フォルダを直接展開すると <code>main</code> の下が空に見えるのは正常です</b>: <code>src/main/java</code> などソースフォルダに登録されたパスはツリー上部に独立表示（昇格）されるためです</li>
+      </ol>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>28</span></div>
+</section>
+
+<!-- ============ 6.2b（続き）「実行」と「デバッグ」の違い ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.2b「実行」と「デバッグ」の違い</h1>
+    <div class="cols">
+      <ul>
+        <li>デバッグビューにスレッドや変数が表示されるのは<b>「デバッグ」で起動したときだけ</b>です。「実行」は素の起動で、Eclipse からアプリの内部状態を覗くことはできません</li>
+        <li><b>仕組み</b>: デバッグ起動は JVM にデバッグ用の接続口（JDWP）を付けて起動し、Eclipse がスレッド・変数・スタックを覗けるようにしています</li>
+        <li>Boot ダッシュボードでは ▶（通常起動）ではなく<b>虫アイコン（デバッグ起動）を使います</b>。学習中は常にデバッグ起動でよく、性能差は無視できるレベルです</li>
+      </ul>
+      <p><b>デバッグビューに表示される主なスレッドの正体</b>:</p>
+      <table>
+        <tr><th style="width:38mm">スレッド名</th><th>正体</th></tr>
+        <tr><td><code>http-nio-8080-exec-*</code></td><td>Tomcat のリクエスト処理部隊。同時に来る複数リクエストを捌くための待機スレッド群で、ブラウザからのアクセスはこのうち 1 本が担当します</td></tr>
+        <tr><td><code>Catalina-utility-*</code></td><td>Tomcat の内部保守処理（セッション掃除など）</td></tr>
+        <tr><td><code>HikariPool-1:housekeeper</code></td><td>DB コネクションプールの管理</td></tr>
+        <tr><td>ファイル監視 / <code>Live Reload Server</code></td><td>spring-boot-devtools のホットリロード用</td></tr>
+      </table>
+      <p>ブレークポイントで停止するのは「そのリクエストを担当している 1 本のスレッド」だけで、他のスレッドは裏で動き続けます。Web アプリケーションがマルチスレッドで動いているということが、このビューで実物として確認できます。</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>29</span></div>
 </section>
 
 <!-- ============ 6. プロジェクトのセットアップ (後半) ============ -->
@@ -1126,7 +1276,7 @@ SELECT * FROM memos;
 \q</pre>
     </div>
   </div>
-  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>25</span></div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>30</span></div>
 </section>
 
 <!-- ============ 7. トラブルシューティング (前半) ============ -->
@@ -1158,7 +1308,7 @@ export PATH=$JAVA_HOME/bin:$PATH</pre>
 mvn clean install -U</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>26</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>31</span></div>
 </section>
 
 <section class="sheet">
@@ -1183,7 +1333,7 @@ ports:
       <p>※ モダン版（learn-memo-app-modern）の PostgreSQL コンテナはホスト側 5433 を使います。両方同時に動かす場合はポートが重ならないようにしてください。</p>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>27</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>32</span></div>
 </section>
 
 <!-- ============ 7. トラブルシューティング (後半) ============ -->
@@ -1206,7 +1356,7 @@ docker compose ps
 docker compose up -d postgres</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>28</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>33</span></div>
 </section>
 
 <section class="sheet">
@@ -1228,6 +1378,7 @@ lsof -i :8080
 <span class="cm"># プロセスを停止するか、別のポートを使う（application.ymlを編集）</span>
 server:
   port: 8081</pre>
+      <p><b>補足（Docker 方式でアプリを動かしたことがある場合）</b>: <code>memoapp-spring</code> コンテナが 8080 を使用中のことがあります → <code>docker stop memoapp-spring</code> で停止してからローカル起動してください（<code>docker start memoapp-spring</code> で元に戻せます）。</p>
       <h3>問題: <code>Flyway migration failed</code> / <code>Migration checksum mismatch</code></h3>
       <p><b>原因</b>: checksum mismatch = 適用済みのマイグレーションファイルが書き換えられた（Flyway はファイル内容のチェックサムを記録しており、コメント変更でも不一致になります）／ その他 = マイグレーション SQL の文法エラーなど。</p>
       <p><b>解決方法</b>:</p>
@@ -1239,7 +1390,22 @@ mvn spring-boot:run</pre>
       <pre>docker compose exec postgres psql -U memoapp_user -d memoapp -c "SELECT version, description, checksum, success FROM flyway_schema_history;"</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>29</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>34</span></div>
+</section>
+
+<!-- ============ 7.5 Eclipseデバッグ: SilentExitException ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章（続き）</div>
+    <h1>7.5 アプリケーション起動関連（Eclipse デバッグ）</h1>
+    <div class="cols">
+      <h3>問題: デバッグ起動すると <code>SilentExitExceptionHandler.exitCurrentThread()</code> で毎回停止する</h3>
+      <p><b>原因</b>: spring-boot-devtools の再起動機構が意図的に投げる <code>SilentExitException</code> を、Eclipse のデバッガが「キャッチされない例外」として検出して停止するためです。アプリの異常ではありません。</p>
+      <p><b>対処 1（簡単）</b>: そのまま F8（再開）を押せば起動が続行します。</p>
+      <p><b>対処 2（恒久）</b>: 「ウィンドウ」→「設定」→「Java」→「デバッグ」→「キャッチされない例外で実行を中断」のチェックを外します。ただし本物のキャッチされない例外でもデバッガが止まらなくなる点に注意してください。</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>35</span></div>
 </section>
 
 <!-- ============ 付録 ============ -->
@@ -1287,7 +1453,7 @@ git pull                  <span class="cm"># リモートから取得</span></pr
       <div class="goal"><b>環境構築お疲れ様でした！🎉</b><br>次は <code>開発ガイド.md</code> を参照して、実際にコードを書いていきましょう。</div>
     </div>
   </div>
-  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>30</span></div>
+  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>36</span></div>
 </section>
 
 </div><!-- /.paper-area -->
