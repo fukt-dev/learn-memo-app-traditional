@@ -238,8 +238,8 @@
         <tr><td></td><td>4.8 データベース管理ツール</td><td>24</td></tr>
         <tr><td>5</td><td>環境構築の確認</td><td>25</td></tr>
         <tr><td>6</td><td>プロジェクトのセットアップ</td><td>26</td></tr>
-        <tr><td>7</td><td>トラブルシューティング</td><td>29</td></tr>
-        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>33</td></tr>
+        <tr><td>7</td><td>トラブルシューティング</td><td>30</td></tr>
+        <tr><td>付録</td><td>よく使うコマンド / エラー検索のコツ / 参考リンク</td><td>35</td></tr>
       </table>
     </div>
   </div>
@@ -1192,6 +1192,28 @@ docker compose logs postgres</pre>
   <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>27</span></div>
 </section>
 
+<!-- ============ 6.2b（続き）Bootダッシュボード ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 6 章（続き）</div>
+    <h1>6.2b Boot ダッシュボードでの起動・停止（推奨）</h1>
+    <div class="cols">
+      <p>Pleiades には Spring Tools (STS) が同梱されており、画面下部の「Boot ダッシュボード」タブから Spring Boot アプリを一覧管理できます。</p>
+      <ul>
+        <li><b>使い方</b>: 「Boot ダッシュボード」タブ → 「local」の下に <code>memo-app [devtools]</code> が表示される → 選択して虫アイコン=デバッグ起動 / ▶=通常起動 / ⏹=停止 / 🔄=再起動</li>
+      </ul>
+      <div class="note"><b>⚠️ 罠（実機で遭遇）</b>: アプリが一覧に表示されない場合、ビューのフィルターアイコンから「フィルターの選択」を開き、<b>「単独の起動構成を非表示」のチェックを外す</b>必要があります（デフォルトでチェックが付いていることがあります）。</div>
+      <p><b>注意</b>: 「Java アプリケーション」として起動したものが動いたままの状態で Boot ダッシュボードから起動すると、ポート 8080 の取り合いで <code>Port 8080 was already in use</code> になります。先に既存の起動を⏹で止めてください。</p>
+      <p><b>豆知識</b>:</p>
+      <ol>
+        <li><b>「サーバー」ビュー（Tomcat10_Java17 などが並ぶビュー）はこのアプリでは使いません</b>: あれは外部 Tomcat に WAR をデプロイする従来型 Java EE 開発用です。Spring Boot は組み込み Tomcat をアプリ内部に持つため、外部サーバーへのデプロイは不要です</li>
+        <li><b>パッケージ・エクスプローラーで <code>src</code> フォルダを直接展開すると <code>main</code> の下が空に見えるのは正常です</b>: <code>src/main/java</code> などソースフォルダに登録されたパスはツリー上部に独立表示（昇格）されるためです</li>
+      </ol>
+    </div>
+  </div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>28</span></div>
+</section>
+
 <!-- ============ 6. プロジェクトのセットアップ (後半) ============ -->
 <section class="sheet">
   <div class="sheet-body">
@@ -1229,7 +1251,7 @@ SELECT * FROM memos;
 \q</pre>
     </div>
   </div>
-  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>28</span></div>
+  <div class="footer"><span>第 6 章 プロジェクトのセットアップ</span><span>29</span></div>
 </section>
 
 <!-- ============ 7. トラブルシューティング (前半) ============ -->
@@ -1261,7 +1283,7 @@ export PATH=$JAVA_HOME/bin:$PATH</pre>
 mvn clean install -U</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>29</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>30</span></div>
 </section>
 
 <section class="sheet">
@@ -1286,7 +1308,7 @@ ports:
       <p>※ モダン版（learn-memo-app-modern）の PostgreSQL コンテナはホスト側 5433 を使います。両方同時に動かす場合はポートが重ならないようにしてください。</p>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>30</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>31</span></div>
 </section>
 
 <!-- ============ 7. トラブルシューティング (後半) ============ -->
@@ -1309,7 +1331,7 @@ docker compose ps
 docker compose up -d postgres</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>31</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>32</span></div>
 </section>
 
 <section class="sheet">
@@ -1343,7 +1365,22 @@ mvn spring-boot:run</pre>
       <pre>docker compose exec postgres psql -U memoapp_user -d memoapp -c "SELECT version, description, checksum, success FROM flyway_schema_history;"</pre>
     </div>
   </div>
-  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>32</span></div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>33</span></div>
+</section>
+
+<!-- ============ 7.5 Eclipseデバッグ: SilentExitException ============ -->
+<section class="sheet">
+  <div class="sheet-body">
+    <div class="chapter-tag">第 7 章（続き）</div>
+    <h1>7.5 アプリケーション起動関連（Eclipse デバッグ）</h1>
+    <div class="cols">
+      <h3>問題: デバッグ起動すると <code>SilentExitExceptionHandler.exitCurrentThread()</code> で毎回停止する</h3>
+      <p><b>原因</b>: spring-boot-devtools の再起動機構が意図的に投げる <code>SilentExitException</code> を、Eclipse のデバッガが「キャッチされない例外」として検出して停止するためです。アプリの異常ではありません。</p>
+      <p><b>対処 1（簡単）</b>: そのまま F8（再開）を押せば起動が続行します。</p>
+      <p><b>対処 2（恒久）</b>: 「ウィンドウ」→「設定」→「Java」→「デバッグ」→「キャッチされない例外で実行を中断」のチェックを外します。ただし本物のキャッチされない例外でもデバッガが止まらなくなる点に注意してください。</p>
+    </div>
+  </div>
+  <div class="footer"><span>第 7 章 トラブルシューティング</span><span>34</span></div>
 </section>
 
 <!-- ============ 付録 ============ -->
@@ -1391,7 +1428,7 @@ git pull                  <span class="cm"># リモートから取得</span></pr
       <div class="goal"><b>環境構築お疲れ様でした！🎉</b><br>次は <code>開発ガイド.md</code> を参照して、実際にコードを書いていきましょう。</div>
     </div>
   </div>
-  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>33</span></div>
+  <div class="footer"><span>付録 メモ帳アプリケーション 環境構築手順書</span><span>35</span></div>
 </section>
 
 </div><!-- /.paper-area -->
